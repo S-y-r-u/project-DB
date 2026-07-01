@@ -1,7 +1,7 @@
 -- ============================================================================
--- Query Design — Group G01
+-- Query Design Document — Group G01
 -- DBMS: Microsoft SQL Server
--- Description: 7 meaningful business queries for the Space Booking and
+-- Description: Reporting and operational queries for the Space Booking and
 --              Maintenance Management System.
 -- ============================================================================
 
@@ -9,25 +9,21 @@ USE SpaceBookingDB;
 GO
 
 -- ============================================================================
--- Q1: Find available spaces for a given date/time range
+-- Q1: SPACE AVAILABILITY CHECK
 -- ============================================================================
 -- Business question:
---   "Which spaces are available to book on 2026-07-07 between 13:00 and 17:00?"
+--   Which bookable spaces are free during a given time window?
 -- Target user(s):
---   Students, Lecturers, TAs, Department Administrators (anyone making a
---   booking request).
--- Why useful:
---   Instead of manually checking spreadsheets, a requester can query
---   available spaces directly. The query excludes spaces that are
---   non-bookable by status AND spaces already occupied by an approved or
---   checked-in booking during the requested window. A LEFT JOIN with a
---   NULL check implements the "not overlapping" condition without a
---   correlated subquery on the full Bookings table.
--- SQL features: LEFT JOIN, anti-join pattern, column aliases, WHERE
---   filtering, ORDER BY.
+--   All users (students, lecturers, TAs, staff) who want to submit a booking.
+-- Why this is useful:
+--   This is the most fundamental operational query. It filters out spaces that
+--   are non-bookable (Under Maintenance, Temporarily Closed, Retired) and
+--   spaces that already have an approved/checked-in booking overlapping the
+--   desired time window. Users can see only spaces that are genuinely available.
+-- ============================================================================
 
-DECLARE @SearchStart DATETIME2 = '2026-07-07 13:00:00';
-DECLARE @SearchEnd   DATETIME2 = '2026-07-07 17:00:00';
+DECLARE @check_start DATETIME2 = '2026-07-15 09:00:00';
+DECLARE @check_end   DATETIME2 = '2026-07-15 12:00:00';
 
 SELECT
     s.space_code,
@@ -37,385 +33,300 @@ SELECT
     s.floor,
     s.room_number,
     s.capacity,
-    s.usage_policy
-FROM
-    Spaces s
-    LEFT JOIN Bookings b
-        ON  b.space_code = s.space_code
+    s.usage_policy,
+    (SELECT COUNT(*) FROM Facilities f WHERE f.space_code = s.space_code) AS facility_count
+FROM Spaces s
+WHERE s.current_status = 'Available'
+  AND NOT EXISTS (
+      SELECT 1
+      FROM Bookings b
+      WHERE b.space_code = s.space_code
         AND b.status IN ('Approved', 'Checked In')
-        AND b.requested_start_time < @SearchEnd
-        AND b.requested_end_time   > @SearchStart
-WHERE
-    s.current_status = 'Available'
-    AND b.booking_id IS NULL   -- no conflicting booking found
-ORDER BY
-    s.building,
-    s.floor,
-    s.room_number;
-
--- Expected result: All 6 available spaces EXCEPT CS-101 (Booking 4,
---   approved workshop 13:00–17:00 on 2026-07-07, overlaps the search
---   window). The result should show 5 spaces:
---   CS-202, CS-205, CS-B01, LIB-301, ADM-100.
+        AND b.requested_start_time < @check_end
+        AND @check_start < b.requested_end_time
+  )
+ORDER BY s.space_type, s.capacity;
 
 GO
 
 -- ============================================================================
--- Q2: Upcoming approved bookings for the next 7 days
+-- Q2: UPCOMING BOOKINGS DASHBOARD (NEXT 7 DAYS)
 -- ============================================================================
 -- Business question:
---   "What is the schedule of approved bookings for the upcoming week,
---    ordered by date and room?"
+--   What approved or in-progress bookings are scheduled in the next 7 days,
+--   and which staff member approved each one?
 -- Target user(s):
---   Facility Staff (daily planning, room preparation, check-in schedule).
--- Why useful:
---   Staff need a consolidated view of the coming week's bookings so they
---   can prepare rooms, check equipment, and assign check-in personnel.
--- SQL features: INNER JOIN (3 tables), date range filtering, ORDER BY
---   multiple columns, CAST for date-only display.
-
-DECLARE @Today DATE = '2026-06-30';
-DECLARE @WeekLater DATE = DATEADD(DAY, 7, @Today);
+--   Facility Staff — need to prepare spaces for upcoming sessions.
+-- Why this is useful:
+--   Provides a concise 7-day lookahead so staff can allocate resources
+--   (check-in personnel, cleaning, equipment preparation) efficiently.
+-- ============================================================================
 
 SELECT
     b.booking_id,
-    CAST(b.requested_start_time AS DATE) AS booking_date,
+    b.space_code,
+    s.space_name,
+    s.space_type,
+    u.full_name            AS requester,
     b.requested_start_time,
     b.requested_end_time,
-    s.space_code,
-    s.space_name,
-    u.full_name      AS requester_name,
-    u.role            AS requester_role,
     b.booking_type,
+    b.status,
     b.expected_participants,
-    b.purpose_of_use
-FROM
-    Bookings b
-    INNER JOIN Spaces s ON b.space_code = s.space_code
-    INNER JOIN Users  u ON b.requester_id = u.user_id
-WHERE
-    b.status = 'Approved'
-    AND b.requested_start_time >= @Today
-    AND b.requested_start_time <  @WeekLater
-ORDER BY
-    booking_date,
-    s.space_code,
-    b.requested_start_time;
-
--- Expected result: 2 bookings
---   2026-07-07 | CS-101 | Marie Curie | Workshop (booking 4)
---   2026-07-14 | CS-202 | Dennis Ritchie | Lecture (booking 11)
+    au.full_name           AS approved_by,
+    b.decision_time        AS approved_at
+FROM Bookings b
+INNER JOIN Spaces s  ON b.space_code = s.space_code
+INNER JOIN Users u   ON b.requester_id = u.user_id
+LEFT  JOIN Users au  ON b.approver_id = au.user_id
+WHERE b.status IN ('Approved', 'Checked In')
+  AND b.requested_start_time >= SYSDATETIME()
+  AND b.requested_start_time < DATEADD(DAY, 7, SYSDATETIME())
+ORDER BY b.requested_start_time, b.space_code;
 
 GO
 
 -- ============================================================================
--- Q3: Space utilization summary — number of completed bookings per space
+-- Q3: ACTIVE MAINTENANCE OVERVIEW
 -- ============================================================================
 -- Business question:
---   "Which spaces are used the most (and least) based on completed booking
---    history? What is the total hours used and average occupancy?"
+--   Which spaces are currently under active maintenance, what problems were
+--   reported, who is assigned, and how long has the maintenance been open?
 -- Target user(s):
---   Facility Manager (resource planning, space allocation decisions).
--- Why useful:
---   The Facility Manager can identify overused and underused spaces to
---   inform decisions about re-allocation, renovation, or changes to
---   booking policies.
--- SQL features: LEFT JOIN with GROUP BY, aggregation (COUNT, SUM, AVG),
---   DATEDIFF, COALESCE, ORDER BY.
+--   Facility Manager, Facility Staff — to track and manage ongoing repairs.
+-- Why this is useful:
+--   Gives a real-time dashboard of all active maintenance (Reported or
+--   In Progress). The duration column helps identify long-overdue items
+--   that need escalation.
+-- ============================================================================
 
 SELECT
     s.space_code,
     s.space_name,
     s.space_type,
-    s.capacity,
-    COUNT(b.booking_id)                               AS total_completed_bookings,
-    COALESCE(SUM(DATEDIFF(MINUTE, b.actual_start_time, b.actual_end_time)), 0)
-        / 60.0                                        AS total_usage_hours,
-    COALESCE(AVG(b.expected_participants * 1.0), 0)   AS avg_expected_occupancy,
-    COALESCE(AVG(b.expected_participants * 1.0) / NULLIF(s.capacity, 0) * 100, 0)
-                                                        AS avg_occupancy_pct
-FROM
-    Spaces s
-    LEFT JOIN Bookings b
-        ON  b.space_code = s.space_code
-        AND b.status = 'Completed'
-GROUP BY
-    s.space_code,
-    s.space_name,
-    s.space_type,
-    s.capacity
-ORDER BY
-    total_completed_bookings DESC,
-    total_usage_hours DESC;
-
--- Expected result: 9 rows (one per space)
---   CS-205 (2 completed: 3h + 3h15m = 6.25 hrs)
---   CS-101 (1 completed: 3h15m)
---   Remaining 7 spaces: 0 completed bookings, 0 usage hours.
-
-GO
-
--- ============================================================================
--- Q4: Active maintenance issues with assigned staff
--- ============================================================================
--- Business question:
---   "What maintenance work is currently outstanding (Reported or In
---    Progress), and who is assigned to each issue?"
--- Target user(s):
---   Facility Staff, Facility Manager (workload tracking, prioritisation).
--- Why useful:
---   Provides a real-time dashboard of unresolved maintenance issues
---   so that the Facility Manager can assign unassigned tasks and track
---   progress. The query also shows whether a space is currently bookable
---   based on its status.
--- SQL features: INNER/LEFT JOIN, CASE expression, ORDER BY priority
---   (status severity), concatenation.
-
-SELECT
     m.maintenance_id,
-    m.space_code,
-    s.space_name,
-    s.current_status                             AS space_current_status,
-    CASE
-        WHEN s.current_status IN ('Under Maintenance', 'Temporarily Closed')
-        THEN 'NOT BOOKABLE'
-        ELSE 'Bookable'
-    END                                          AS bookable_flag,
     m.problem_type,
     m.problem_description,
-    m.status                                     AS maintenance_status,
-    COALESCE(u_assigned.full_name, N'(Unassigned)') AS assigned_staff,
-    u_reporter.full_name                         AS reported_by,
+    m.status               AS maintenance_status,
     m.start_time,
+    DATEDIFF(DAY, COALESCE(m.start_time, SYSDATETIME()), SYSDATETIME()) AS days_open,
+    rp.full_name           AS reported_by,
+    ast.full_name          AS assigned_staff,
     m.result_note
-FROM
-    MaintenanceRecords m
-    INNER JOIN Spaces s ON m.space_code = s.space_code
-    INNER JOIN Users u_reporter ON m.reporter_id = u_reporter.user_id
-    LEFT JOIN Users u_assigned ON m.assigned_staff_id = u_assigned.user_id
-WHERE
-    m.status IN ('Reported', 'In Progress')
-ORDER BY
-    CASE m.status
-        WHEN 'Reported'    THEN 1
-        WHEN 'In Progress' THEN 2
-    END,
-    m.maintenance_id;
-
--- Expected result: 2 rows
---   Maintenance 2 | CS-210 | Under Maintenance | NOT BOOKABLE
---     | Broken Projector | In Progress | John von Neumann
---   Maintenance 3 | CS-205 | Available | Bookable
---     | Other | Reported | (Unassigned) | Nikola Tesla
+FROM Spaces s
+INNER JOIN MaintenanceRecords m ON s.space_code = m.space_code
+LEFT  JOIN Users rp             ON m.reporter_id = rp.user_id
+LEFT  JOIN Users ast            ON m.assigned_staff_id = ast.user_id
+WHERE m.status IN ('Reported', 'In Progress')
+ORDER BY days_open DESC, s.space_code;
 
 GO
 
 -- ============================================================================
--- Q5: User booking history — view own bookings with details
+-- Q4: BOOKING HISTORY FOR A SPECIFIC SPACE
 -- ============================================================================
 -- Business question:
---   "Show me (Grace Hopper) all my past and upcoming bookings, ordered
---    from most recent to furthest in the future."
+--   What is the complete booking history for a particular space, including
+--   who booked it, what for, and how it turned out?
 -- Target user(s):
---   Any user (students, lecturers, etc.) checking their own booking history.
--- Why useful:
---   Users can track the status of their requests, see upcoming approved
---   bookings, and review past completed or rejected bookings — without
---   contacting the school office.
--- SQL features: INNER JOIN (2 tables), parameterised user filter,
---   CASE for human-readable status label, ORDER BY time.
+--   Facility Manager — for auditing, space usage analysis, and resolving
+--   disputes about past bookings.
+-- Why this is useful:
+--   Provides a full chronological audit trail (past and future) for any
+--   space. The status column captures the entire lifecycle outcome, and
+--   usage_notes give qualitative detail about each session.
+-- ============================================================================
 
-DECLARE @TargetUserEmail NVARCHAR(255) = N'ghopper@university.edu';
+DECLARE @target_space NVARCHAR(20) = 'CS-101';
 
 SELECT
     b.booking_id,
-    s.space_code,
-    s.space_name,
     b.requested_start_time,
     b.requested_end_time,
+    u.full_name        AS requester,
+    u.role             AS requester_role,
     b.booking_type,
-    b.purpose_of_use,
     b.status,
-    CASE
-        WHEN b.status = 'Pending'    THEN N'Awaiting staff review'
-        WHEN b.status = 'Approved'   THEN N'Approved — ready for check-in'
-        WHEN b.status = 'Rejected'   THEN N'Rejected: ' + ISNULL(b.rejection_reason, N'No reason provided')
-        WHEN b.status = 'Cancelled'  THEN N'Cancelled'
-        WHEN b.status = 'Checked In' THEN N'In progress'
-        WHEN b.status = 'Completed'  THEN N'Completed'
-        WHEN b.status = 'No-Show'    THEN N'Missed — not checked in'
-        ELSE b.status
-    END                                AS status_description,
-    b.expected_participants
-FROM
-    Bookings b
-    INNER JOIN Spaces s ON b.space_code = s.space_code
-    INNER JOIN Users  u ON b.requester_id = u.user_id
-WHERE
-    u.email = @TargetUserEmail
-ORDER BY
-    b.requested_start_time DESC;
-
--- Expected result: 3 rows for Grace Hopper (user_id = 4)
---   Booking 6 | CS-101 | 2026-06-16 09:00 | Rejected   (most recent DESC)
---   Booking 2 | CS-205 | 2026-06-23 14:00 | Completed
---   Booking 5 | LIB-301 | 2026-07-08 14:00 | Pending    (earliest)
+    b.actual_start_time,
+    b.actual_end_time,
+    b.expected_participants,
+    b.purpose_of_use,
+    b.usage_notes,
+    au.full_name       AS approved_by,
+    cu.full_name       AS checked_in_by
+FROM Bookings b
+INNER JOIN Users u   ON b.requester_id = u.user_id
+LEFT  JOIN Users au  ON b.approver_id = au.user_id
+LEFT  JOIN Users cu  ON b.check_in_person_id = cu.user_id
+WHERE b.space_code = @target_space
+ORDER BY b.requested_start_time DESC;
 
 GO
 
 -- ============================================================================
--- Q6: Spaces with no-show bookings requiring follow-up
+-- Q5: USER BOOKING HISTORY WITH TIMELINE
 -- ============================================================================
 -- Business question:
---   "Which bookings resulted in no-shows, and what spaces were reserved
---    but went unused?"
+--   What is a specific user's booking history, across all spaces, showing
+--   the full lifecycle (requested time, actual usage, outcome)?
 -- Target user(s):
---   Facility Manager, Facility Staff (identifying wasted capacity,
---   enforcing no-show penalties, updating policies).
--- Why useful:
---   No-show bookings waste capacity that could have been used by others.
---   This query surfaces no-show records so staff can investigate,
---   update policies, or contact the requester.
--- SQL features: INNER JOIN (3 tables), DATEDIFF to measure wasted time,
---   ORDER BY wasted time descending.
+--   Facility Staff — to check a user's booking patterns before approving
+--   new requests. Also useful for the user themselves to review past bookings.
+-- Why this is useful:
+--   A comprehensive view of one user's bookings. The DATEDIFF between
+--   actual and requested times lets staff spot patterns like habitual
+--   late check-ins or overstays.
+-- ============================================================================
+
+DECLARE @target_user INT = 2;  -- Grace Hopper
 
 SELECT
     b.booking_id,
-    u.full_name           AS requester_name,
-    u.email               AS requester_email,
-    u.role                AS requester_role,
     s.space_code,
     s.space_name,
-    s.capacity,
     b.requested_start_time,
     b.requested_end_time,
-    DATEDIFF(MINUTE, b.requested_start_time, b.requested_end_time)
-                            AS wasted_minutes,
-    b.expected_participants,
+    b.actual_start_time,
+    b.actual_end_time,
+    DATEDIFF(MINUTE, b.requested_start_time, b.actual_start_time) AS check_in_lag_minutes,
+    b.status,
     b.booking_type,
     b.purpose_of_use,
-    COALESCE(u_approver.full_name, N'(No approver)') AS last_approved_by
-FROM
-    Bookings b
-    INNER JOIN Spaces s ON b.space_code = s.space_code
-    INNER JOIN Users  u ON b.requester_id = u.user_id
-    LEFT JOIN Users u_approver ON b.approver_id = u_approver.user_id
-WHERE
-    b.status = 'No-Show'
-ORDER BY
-    wasted_minutes DESC;
-
--- Expected result: 1 row
---   Booking 8 | Marie Curie | CS-101 | 120 min wasted
+    b.usage_notes
+FROM Bookings b
+INNER JOIN Spaces s ON b.space_code = s.space_code
+WHERE b.requester_id = @target_user
+ORDER BY b.requested_start_time DESC;
 
 GO
 
 -- ============================================================================
--- Q7: Detect overlapping approved bookings for conflict checking
+-- Q6: NO-SHOW REPORT
 -- ============================================================================
 -- Business question:
---   "Are there any two approved (or checked-in) bookings in the same space
---    with overlapping time ranges?"
+--   Which bookings resulted in no-shows, and are there repeat offenders
+--   (users or spaces) that warrant attention?
 -- Target user(s):
---   Facility Staff, Facility Manager, Application (trigger/validation
---   logic). This query can be used inside a trigger or application code
---   to enforce business rule BR3 (no overlapping approved bookings).
--- Why useful:
---   The schema-level CHECK constraints cannot enforce cross-row
---   temporal constraints. This self-JOIN query detects conflicts so
---   that staff can manually resolve them, or it can serve as the basis
---   for a trigger that rejects conflicting INSERT/UPDATE operations.
--- SQL features: Self-JOIN, anti-symmetric pair elimination (a < b),
---   overlap condition, filtered to active booking statuses.
+--   Facility Manager — to enforce booking policies and identify misuse.
+-- Why this is useful:
+--   No-shows waste space capacity that others could have used. Grouping
+--   by requester and space helps identify patterns: a user who repeatedly
+--   no-shows may need a warning, and a space with frequent no-shows may
+--   have an availability perception problem.
+-- ============================================================================
 
-SELECT DISTINCT
-    b1.booking_id        AS conflict_booking_1,
-    b2.booking_id        AS conflict_booking_2,
-    b1.space_code,
+SELECT
+    b.booking_id,
+    b.space_code,
     s.space_name,
-    b1.status            AS status_1,
-    b2.status            AS status_2,
-    b1.requested_start_time AS start_1,
-    b1.requested_end_time   AS end_1,
-    b2.requested_start_time AS start_2,
-    b2.requested_end_time   AS end_2
-FROM
-    Bookings b1
-    INNER JOIN Bookings b2
-        ON  b1.booking_id < b2.booking_id       -- each pair once
-        AND b1.space_code = b2.space_code
-        AND b1.requested_start_time < b2.requested_end_time
-        AND b2.requested_start_time < b1.requested_end_time
-    INNER JOIN Spaces s ON b1.space_code = s.space_code
-WHERE
-    b1.status IN ('Approved', 'Checked In')
-    AND b2.status IN ('Approved', 'Checked In')
-ORDER BY
-    b1.space_code,
-    b1.requested_start_time;
+    u.full_name        AS requester,
+    u.department,
+    b.requested_start_time,
+    b.requested_end_time,
+    b.booking_type,
+    DATEDIFF(HOUR, b.requested_start_time, b.requested_end_time) AS requested_duration_hours,
+    au.full_name       AS approved_by
+FROM Bookings b
+INNER JOIN Spaces s ON b.space_code = s.space_code
+INNER JOIN Users u  ON b.requester_id = u.user_id
+LEFT  JOIN Users au ON b.approver_id = au.user_id
+WHERE b.status = 'No-Show'
+ORDER BY b.requested_start_time DESC;
 
--- Expected result: 1 row
---   Booking 4 (Approved, 13:00-17:00) conflicts with Booking 9
---   (Pending, 14:00-16:00) — both in CS-101 on 2026-07-07.
---   NOTE: Booking 9 is Pending, so this query filters it OUT
---   (only Approved/Checked In are compared). The result is empty
---   because the sample data has no two *approved* bookings that
---   overlap. This is by design — the conflict-detection trigger
---   would use this query after status transitions. If Booking 9
---   were Approved, it would appear here.
-
--- To demonstrate a detectable conflict, the same query without the
--- status filter (or with Pending included) would show the pair:
---   SELECT ... WHERE b1.status IN ('Approved','Checked In','Pending')
---               AND b2.status IN ('Approved','Checked In','Pending')
--- Uncomment below to see the pending-vs-approved conflict:
-/*
-SELECT DISTINCT
-    b1.booking_id        AS conflict_booking_1,
-    b2.booking_id        AS conflict_booking_2,
-    b1.space_code,
-    b1.status            AS status_1,
-    b2.status            AS status_2,
-    b1.requested_start_time,
-    b1.requested_end_time,
-    b2.requested_start_time,
-    b2.requested_end_time
-FROM
-    Bookings b1
-    INNER JOIN Bookings b2
-        ON  b1.booking_id < b2.booking_id
-        AND b1.space_code = b2.space_code
-        AND b1.requested_start_time < b2.requested_end_time
-        AND b2.requested_start_time < b1.requested_end_time
-WHERE
-    b1.status IN ('Approved', 'Checked In', 'Pending')
-    AND b2.status IN ('Approved', 'Checked In', 'Pending')
-ORDER BY
-    b1.space_code,
-    b1.requested_start_time;
-*/
+-- Companion: count no-shows per user to spot repeat offenders.
+SELECT
+    u.user_id,
+    u.full_name,
+    u.role,
+    COUNT(*) AS no_show_count
+FROM Bookings b
+INNER JOIN Users u ON b.requester_id = u.user_id
+WHERE b.status = 'No-Show'
+GROUP BY u.user_id, u.full_name, u.role
+ORDER BY no_show_count DESC;
 
 GO
 
 -- ============================================================================
--- QUERY SUMMARY
+-- Q7: SPACE UTILIZATION SUMMARY
 -- ============================================================================
--- +------+--------------------------------------------------+------------------+
--- | Query| Purpose                                          | SQL Features     |
--- +------+--------------------------------------------------+------------------+
--- | Q1   | Find available spaces for a time window          | LEFT JOIN, anti- |
--- |      |                                                  | join, variables  |
--- | Q2   | Upcoming week approved bookings                  | 3-table INNER    |
--- |      |                                                  | JOIN, date range |
--- | Q3   | Space utilization (completed bookings)           | LEFT JOIN, GROUP |
--- |      |                                                  | BY, aggregation  |
--- | Q4   | Active maintenance with assignee info            | LEFT JOIN, CASE, |
--- |      |                                                  | COALESCE         |
--- | Q5   | User booking history (self-service)              | JOIN, CASE for   |
--- |      |                                                  | readable status  |
--- | Q6   | No-show bookings for follow-up                   | JOIN, DATEDIFF,  |
--- |      |                                                  | LEFT JOIN        |
--- | Q7   | Overlap detection (conflict checker)             | Self-JOIN, anti- |
--- |      |                                                  | symmetric pair   |
--- +------+--------------------------------------------------+------------------+
+-- Business question:
+--   How much is each space being used? What is the no-show and cancellation
+--   rate? What is the average booking size compared to capacity?
+-- Target user(s):
+--   Facility Manager — for strategic decisions about space allocation,
+--   identifying underutilized spaces, and planning capacity.
+-- Why this is useful:
+--   Aggregates all bookings into a per-space summary: total bookings,
+--   completed vs. no-show vs. cancelled counts, average participants,
+--   and average requested duration. A low completion rate or high
+--   no-show rate may indicate a space that needs policy changes.
+-- ============================================================================
+
+SELECT
+    s.space_code,
+    s.space_name,
+    s.space_type,
+    s.capacity,
+    COUNT(b.booking_id)                                                   AS total_bookings,
+    SUM(CASE WHEN b.status = 'Completed'   THEN 1 ELSE 0 END)            AS completed,
+    SUM(CASE WHEN b.status = 'No-Show'     THEN 1 ELSE 0 END)            AS no_show,
+    SUM(CASE WHEN b.status = 'Cancelled'   THEN 1 ELSE 0 END)            AS cancelled,
+    SUM(CASE WHEN b.status = 'Rejected'    THEN 1 ELSE 0 END)            AS rejected,
+    ROUND(AVG(CAST(b.expected_participants AS FLOAT)), 1)                AS avg_participants,
+    ROUND(AVG(CAST(b.expected_participants AS FLOAT)) / s.capacity, 2)  AS utilization_ratio,
+    ROUND(AVG(DATEDIFF(HOUR, b.requested_start_time, b.requested_end_time)), 1) AS avg_duration_hours
+FROM Spaces s
+LEFT JOIN Bookings b ON s.space_code = b.space_code
+GROUP BY s.space_code, s.space_name, s.space_type, s.capacity
+ORDER BY total_bookings DESC, s.space_code;
+
+GO
+
+-- ============================================================================
+-- Q8: FACILITIES IN POOR CONDITION
+-- ============================================================================
+-- Business question:
+--   Which spaces have facilities that are broken or in fair condition,
+--   and what specific items need attention?
+-- Target user(s):
+--   Facility Staff — to prioritize repairs and replacements.
+-- Why this is useful:
+--   Supplies a targeted list of equipment needing service, grouped by
+--   space. Staff can use this to plan maintenance rounds and order
+--   replacement parts without manually inspecting every room.
+-- ============================================================================
+
+SELECT
+    s.space_code,
+    s.space_name,
+    s.space_type,
+    s.current_status,
+    f.facility_id,
+    f.facility_name,
+    f.condition
+FROM Spaces s
+INNER JOIN Facilities f ON s.space_code = f.space_code
+WHERE f.condition IN ('Broken', 'Fair')
+ORDER BY
+    CASE f.condition
+        WHEN 'Broken' THEN 1
+        WHEN 'Fair'   THEN 2
+    END,
+    s.space_code,
+    f.facility_name;
+
+GO
+
+-- ============================================================================
+-- QUERY COVERAGE SUMMARY
+-- ============================================================================
+-- Q1  Space availability check               (All users — booking workflow)
+-- Q2  Upcoming bookings (7-day dashboard)    (Facility Staff — space prep)
+-- Q3  Active maintenance overview            (Facility Manager — tracking)
+-- Q4  Booking history for a specific space   (Facility Manager — audit)
+-- Q5  User booking history with timeline     (Facility Staff — user check)
+-- Q6  No-show report + repeat offenders      (Facility Manager — policy)
+-- Q7  Space utilization summary              (Facility Manager — strategy)
+-- Q8  Facilities in poor condition           (Facility Staff — repairs)
 -- ============================================================================
