@@ -7,16 +7,15 @@
 -- ============================================================================
 -- 1. DATABASE CREATION
 -- ============================================================================
--- Uncomment and modify the file path below to create the database on your
--- target SQL Server instance.
+-- Uncomment and modify the file path to create the database.
 --
--- CREATE DATABASE SpaceBookingDB;
--- GO
--- USE SpaceBookingDB;
--- GO
+CREATE DATABASE SpaceBookingDB;
+GO
+USE SpaceBookingDB;
+GO
 
 -- ============================================================================
--- 2. TABLES WITH CONSTRAINTS
+-- 2. TABLES
 -- ============================================================================
 
 -- --------------------------------------------------------------------------
@@ -89,7 +88,6 @@ CREATE TABLE Facilities (
     facility_id     INT             NOT NULL IDENTITY(1,1),
     space_code      NVARCHAR(20)    NOT NULL,
     facility_name   NVARCHAR(100)   NOT NULL,
-    quantity        INT             NOT NULL DEFAULT 1,
     condition       NVARCHAR(100)   NULL,
 
     CONSTRAINT PK_Facilities PRIMARY KEY (facility_id),
@@ -97,9 +95,7 @@ CREATE TABLE Facilities (
     CONSTRAINT FK_Facilities_SpaceCode
         FOREIGN KEY (space_code) REFERENCES Spaces (space_code)
         ON DELETE CASCADE
-        ON UPDATE CASCADE,
-
-    CONSTRAINT CK_Facilities_Quantity CHECK (quantity >= 1)
+        ON UPDATE CASCADE
 );
 
 -- --------------------------------------------------------------------------
@@ -140,12 +136,12 @@ CREATE TABLE Bookings (
 
     CONSTRAINT FK_Bookings_Approver
         FOREIGN KEY (approver_id) REFERENCES Users (user_id)
-        ON DELETE SET NULL
+        ON DELETE NO ACTION
         ON UPDATE NO ACTION,
 
     CONSTRAINT FK_Bookings_CheckInPerson
         FOREIGN KEY (check_in_person_id) REFERENCES Users (user_id)
-        ON DELETE SET NULL
+        ON DELETE NO ACTION
         ON UPDATE NO ACTION,
 
     CONSTRAINT CK_Bookings_BookingType CHECK (booking_type IN (
@@ -171,22 +167,19 @@ CREATE TABLE Bookings (
     CONSTRAINT CK_Bookings_TimeRange CHECK (requested_end_time > requested_start_time),
     CONSTRAINT CK_Bookings_Participants CHECK (expected_participants > 0),
 
-    -- Validation recommendation I2 + I4:
-    -- An Approved or Rejected booking must have an approver and a decision timestamp.
+    -- An Approved or Rejected booking must have a decision and an approver.
     CONSTRAINT CK_Bookings_Decision CHECK (
         status NOT IN ('Approved', 'Rejected')
         OR (approver_id IS NOT NULL AND decision_time IS NOT NULL)
     ),
 
-    -- Validation recommendation I3:
     -- A Rejected booking must include a rejection reason.
     CONSTRAINT CK_Bookings_Rejection CHECK (
         status <> 'Rejected'
         OR rejection_reason IS NOT NULL
     ),
 
-    -- Validation recommendation I5:
-    -- If actual_end_time is recorded, actual_start_time must also be recorded.
+    -- actual_end_time requires actual_start_time.
     CONSTRAINT CK_Bookings_CheckOut CHECK (
         actual_end_time IS NULL
         OR actual_start_time IS NOT NULL
@@ -241,6 +234,7 @@ CREATE TABLE MaintenanceRecords (
         'Cancelled'
     )),
 
+    -- If a completion time is recorded, a start time must also exist.
     CONSTRAINT CK_MaintenanceRecords_CompletionTime CHECK (
         completion_time IS NULL
         OR start_time IS NOT NULL
@@ -248,52 +242,129 @@ CREATE TABLE MaintenanceRecords (
 );
 
 -- ============================================================================
--- 3. INDEXES FOR PERFORMANCE
+-- 3. INDEXES
 -- ============================================================================
 
--- Index to speed up overlap checks: find approved bookings for a space
--- within a time range.
+-- Speed up overlap checks for conflict-prevention trigger.
 CREATE INDEX IX_Bookings_SpaceCode_TimeRange
     ON Bookings (space_code, requested_start_time, requested_end_time)
     WHERE status IN ('Approved', 'Checked In');
 
--- Index to find bookings by requester.
+-- Look up bookings by requester.
 CREATE INDEX IX_Bookings_Requester
     ON Bookings (requester_id);
 
--- Index to find active maintenance records for a space (used when blocking
--- new bookings).
+-- Find active maintenance records for a space (used by BR2/BR7 trigger).
 CREATE INDEX IX_MaintenanceRecords_Active
     ON MaintenanceRecords (space_code, status)
     WHERE status IN ('Reported', 'In Progress');
 
--- Index to look up facilities by space.
+-- Look up facilities by space.
 CREATE INDEX IX_Facilities_SpaceCode
     ON Facilities (space_code);
-
--- Index to look up spaces by building/location.
-CREATE INDEX IX_Spaces_Location
-    ON Spaces (building, floor);
+GO
 
 -- ============================================================================
--- 4. VALIDATION TRACEABILITY
+-- 4. TRIGGERS
+-- ============================================================================
+
+-- --------------------------------------------------------------------------
+-- 4.1 Trigger: trg_Maintenance_SyncSpaceStatus (BR2 + BR7)
+--
+-- When a MaintenanceRecord is inserted or updated:
+--   - If the new status is 'Reported' or 'In Progress', set the
+--     Space.current_status to 'Under Maintenance'.
+--   - If the new status is 'Completed' or 'Cancelled', check whether
+--     any other active maintenance exists for that space.  If none,
+--     revert Space.current_status to 'Available'.
+-- --------------------------------------------------------------------------
+CREATE TRIGGER trg_Maintenance_SyncSpaceStatus
+    ON MaintenanceRecords
+    AFTER INSERT, UPDATE
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    -- Handle activation: maintenance marked Reported or In Progress.
+    UPDATE s
+    SET current_status = 'Under Maintenance'
+    FROM Spaces s
+    INNER JOIN inserted i ON s.space_code = i.space_code
+    WHERE i.status IN ('Reported', 'In Progress')
+      AND s.current_status NOT IN ('Temporarily Closed', 'Retired');
+
+    -- Handle deactivation: maintenance marked Completed or Cancelled.
+    -- Only revert to Available if no other active maintenance exists for
+    -- that space AND the space is not Temporarily Closed or Retired.
+    UPDATE s
+    SET current_status = 'Available'
+    FROM Spaces s
+    INNER JOIN inserted i ON s.space_code = i.space_code
+    WHERE i.status IN ('Completed', 'Cancelled')
+      AND s.current_status = 'Under Maintenance'
+      AND NOT EXISTS (
+          SELECT 1
+          FROM MaintenanceRecords m
+          WHERE m.space_code = s.space_code
+            AND m.status IN ('Reported', 'In Progress')
+      );
+END;
+GO
+
+-- --------------------------------------------------------------------------
+-- 4.2 Trigger: trg_Booking_PreventOverlap (BR3)
+--
+-- Before INSERT or UPDATE on Bookings, prevent creating or updating a
+-- booking to 'Approved' or 'Checked In' if another approved/checked-in
+-- booking already exists for the same space with overlapping time.
+-- --------------------------------------------------------------------------
+CREATE TRIGGER trg_Booking_PreventOverlap
+    ON Bookings
+    AFTER INSERT, UPDATE
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    IF EXISTS (
+        SELECT 1
+        FROM Bookings b1
+        INNER JOIN inserted i
+            ON  b1.space_code = i.space_code
+            AND b1.booking_id <> i.booking_id
+            AND b1.requested_start_time < i.requested_end_time
+            AND i.requested_start_time < b1.requested_end_time
+        WHERE i.status IN ('Approved', 'Checked In')
+          AND b1.status IN ('Approved', 'Checked In')
+    )
+    BEGIN
+        RAISERROR ('Booking conflict: the requested time period overlaps with an existing approved booking for this space.', 16, 1);
+        ROLLBACK TRANSACTION;
+        RETURN;
+    END;
+END;
+GO
+
+-- ============================================================================
+-- 5. COMPLETE CONSTRAINT INVENTORY
 -- ============================================================================
 --
--- Issue I1 (Medium): Added UNIQUE(building, floor, room_number) on Spaces.
--- Issue I2 (Low):   CK_Bookings_Decision enforces approver + decision_time
---                   when status is Approved or Rejected.
--- Issue I3 (Low):   CK_Bookings_Rejection enforces rejection_reason when
---                   status is Rejected.
--- Issue I4 (Low):   Handled by CK_Bookings_Decision (approver_id required
---                   when status is Approved or Rejected).
--- Issue I5 (Low):   CK_Bookings_CheckOut enforces actual_start_time required
---                   when actual_end_time is present.
--- Issue I6 (Info):  floor constraint relaxed (no lower bound) to allow
---                   basement levels (e.g., B1).
---
--- Business rules requiring external enforcement (triggers / app logic):
---   E1: No overlapping approved bookings (BR3)
---   E2: Maintenance blocks booking (BR7)
---   E3: No overlapping active maintenance (BR9)
---   E4: Status lifecycle sequencing (BR4)
+-- Primary keys:      5 (Users.user_id, Spaces.space_code, Facilities.facility_id,
+--                       Bookings.booking_id, MaintenanceRecords.maintenance_id)
+-- Foreign keys:      8 (Facilities.space_code, Bookings.requester_id,
+--                       Bookings.space_code, Bookings.approver_id,
+--                       Bookings.check_in_person_id, MaintenanceRecords.space_code,
+--                       MaintenanceRecords.reporter_id,
+--                       MaintenanceRecords.assigned_staff_id)
+-- UNIQUE:            2 (Users.email, Spaces.(building, floor, room_number))
+-- CHECK (enum):      8 (role, account_status, space_type, current_status,
+--                       booking_type, status, problem_type, maintenance status)
+-- CHECK (range):     3 (capacity > 0, expected_participants > 0,
+--                       requested_end_time > requested_start_time)
+-- CHECK (conditional): 3 (decision/approver for Approved/Rejected,
+--                         rejection_reason for Rejected,
+--                         actual_start_time required for actual_end_time)
+-- CHECK (completion): 1 (start_time required if completion_time provided)
+-- Triggers:          2 (maintenance status sync, overlap prevention)
+-- Indexes:           4 (time-range overlap, requester lookup, active
+--                       maintenance, facilities by space)
 -- ============================================================================
