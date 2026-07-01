@@ -18,31 +18,17 @@ GO
 
 INSERT INTO Users (user_id, full_name, email, phone_number, role, department, account_status)
 VALUES
-    -- Lecturers
-    (1,  N'Dr. Alan Turing',     N'aturing@university.edu',  N'555-0101', N'Lecturer',                N'Computer Science',     N'Active'),
-    (2,  N'Dr. Dennis Ritchie',  N'dritchie@university.edu', N'555-0102', N'Lecturer',                N'Computer Science',     N'Active'),
-    (3,  N'Prof. Ada Lovelace',  N'alovelace@university.edu',N'555-0103', N'Lecturer',                N'Computer Science',     N'Active'),
-
-    -- Students
-    (4,  N'Grace Hopper',        N'ghopper@university.edu',  N'555-0201', N'Student',                 N'Computer Science',     N'Active'),
-    (5,  N'Marie Curie',         N'mcurie@university.edu',   N'555-0202', N'Student',                 N'Computer Science',     N'Active'),
-    (6,  N'Linus Torvalds',      N'ltorvalds@university.edu',N'555-0203', N'Student',                 N'Computer Science',     N'Active'),
-
-    -- Teaching Assistant
-    (7,  N'Nikola Tesla',        N'ntesla@university.edu',   N'555-0301', N'Teaching Assistant',      N'Computer Science',     N'Active'),
-
-    -- Facility Staff
-    (8,  N'Ada Lovelace',        N'alovelace.staff@university.edu', N'555-0401', N'Facility Staff',   N'School Office',        N'Active'),
-    (9,  N'John von Neumann',    N'jneumann@university.edu', N'555-0402', N'Facility Staff',         N'School Office',        N'Active'),
-
-    -- Department Administrator
-    (10, N'Alan Kay',            N'akay@university.edu',     N'555-0501', N'Department Administrator',N'Computer Science',     N'Active'),
-
-    -- Facility Manager
-    (11, N'Charles Babbage',     N'cbabbage@university.edu', N'555-0601', N'Facility Manager',        N'School Office',        N'Active'),
-
-    -- Suspended account for edge case testing
-    (12, N'Suspended User',      N'suspended@university.edu',NULL,        N'Student',                 N'Computer Science',     N'Suspended');
+    (1,  N'Dr. Alan Turing',     N'aturing@university.edu',  N'555-0101', N'Lecturer',                N'Computer Science', N'Active'),
+    (2,  N'Grace Hopper',        N'ghopper@university.edu',  N'555-0201', N'Student',                 N'Computer Science', N'Active'),
+    (3,  N'Ada Lovelace',        N'alovelace@university.edu',N'555-0401', N'Facility Staff',          N'School Office',    N'Active'),
+    (4,  N'Charles Babbage',     N'cbabbage@university.edu', N'555-0601', N'Facility Manager',        N'School Office',    N'Active'),
+    (5,  N'Marie Curie',         N'mcurie@university.edu',   N'555-0202', N'Student',                 N'Computer Science', N'Active'),
+    (6,  N'Nikola Tesla',        N'ntesla@university.edu',   N'555-0301', N'Teaching Assistant',      N'Computer Science', N'Active'),
+    (7,  N'Alan Kay',            N'akay@university.edu',     N'555-0501', N'Department Administrator', N'Computer Science', N'Active'),
+    (8,  N'Dr. Dennis Ritchie',  N'dritchie@university.edu', N'555-0102', N'Lecturer',                N'Computer Science', N'Active'),
+    (9,  N'John von Neumann',    N'jneumann@university.edu', N'555-0402', N'Facility Staff',          N'School Office',    N'Active'),
+    (10, N'Suspended User',      N'suspended@university.edu',NULL,        N'Student',                 N'Computer Science', N'Suspended'),
+    (11, N'Prof. Ada Lovelace',  N'alovelace.prof@university.edu',NULL,   N'Lecturer',                N'Computer Science', N'Active');
 GO
 
 SET IDENTITY_INSERT Users OFF;
@@ -53,18 +39,20 @@ GO
 -- ============================================================================
 INSERT INTO Spaces (space_code, space_name, space_type, building, floor, room_number, capacity, current_status, usage_policy)
 VALUES
-    -- Available spaces
-    (N'CS-101', N'Turing Auditorium',      N'Auditorium',          N'CS Building',    1,  N'101', 200, N'Available',         N'Priority given to lectures and examinations. Max 200 persons.'),
-    (N'CS-202', N'Hopper Classroom',       N'Classroom',            N'CS Building',    2,  N'202',  60, N'Available',         N'Standard classroom. Whiteboard and projector available.'),
-    (N'CS-205', N'Lovelace Computer Lab',  N'Computer Laboratory',  N'CS Building',    2,  N'205',  30, N'Available',         N'30 workstations with pre-installed software. No food or drink.'),
-    (N'CS-B01', N'Babbage Project Lab',    N'Project Laboratory',   N'CS Building',   -1,  N'B01',  20, N'Available',         N'Project workspace with soldering stations and 3D printers.'),
-    (N'LIB-301',N'Study Nook',             N'Student Workspace',    N'Library',         3,  N'301',  10, N'Available',         N'Quiet study room. Group discussion permitted at low volume.'),
-    (N'ADM-100',N'Executive Meeting Room', N'Meeting Room',         N'Admin Building',  1,  N'100',  15, N'Available',         N'Administrative meetings only. Video conferencing equipped.'),
+    -- Available spaces (ready for booking)
+    (N'CS-101', N'Turing Auditorium',     N'Auditorium',          N'CS Building',  1,  N'101', 200, N'Available',         N'Priority to lectures and exams. Capacity 200.'),
+    (N'CS-202', N'Hopper Classroom',      N'Classroom',            N'CS Building',  2,  N'202',  60, N'Available',         N'Standard classroom. Whiteboard and projector.'),
+    (N'CS-205', N'Lovelace Computer Lab', N'Computer Laboratory',  N'CS Building',  2,  N'205',  30, N'Available',         N'30 workstations. No food or drink.'),
+    (N'CS-B01', N'Babbage Project Lab',   N'Project Laboratory',   N'CS Building', -1,  N'B01',  20, N'Available',         N'Soldering stations and 3D printers.'),
+    (N'LIB-301',N'Study Nook',            N'Student Workspace',    N'Library',       3,  N'301',  10, N'Available',         N'Quiet study room. Low-volume discussion OK.'),
+    (N'ADM-100',N'Meeting Room Alpha',    N'Meeting Room',         N'Admin Building',1,  N'100',  15, N'Available',         N'Admin meetings only. Video conferencing.'),
 
-    -- Exceptional-status spaces (cannot be booked)
-    (N'CS-210', N'Shannon Classroom',      N'Classroom',            N'CS Building',    2,  N'210',  40, N'Under Maintenance',  N'Room closed — AC repair in progress.'),
-    (N'CS-001', N'Legacy Classroom',       N'Classroom',            N'CS Building',    0,  N'001',  30, N'Retired',           N'This room is no longer in service.'),
-    (N'CS-203', N'Tesla Computer Lab',     N'Computer Laboratory',  N'CS Building',    2,  N'203',  25, N'Temporarily Closed', N'Closed for ventilation system upgrade.');
+    -- Spaces that will become Under Maintenance via trigger (starts Available)
+    (N'CS-210', N'Shannon Classroom',     N'Classroom',            N'CS Building',  2,  N'210',  40, N'Available',         N''),
+
+    -- Non-bookable statuses (set directly, not changed by trigger)
+    (N'CS-001', N'Legacy Classroom',      N'Classroom',            N'CS Building',  0,  N'001',  30, N'Retired',           N'Decommissioned.'),
+    (N'CS-203', N'Tesla Computer Lab',    N'Computer Laboratory',  N'CS Building',  2,  N'203',  25, N'Temporarily Closed', N'Ventilation upgrade in progress.');
 GO
 
 -- ============================================================================
@@ -73,63 +61,168 @@ GO
 SET IDENTITY_INSERT Facilities ON;
 GO
 
-INSERT INTO Facilities (facility_id, space_code, facility_name, quantity, condition)
+INSERT INTO Facilities (facility_id, space_code, facility_name, condition)
 VALUES
     -- CS-101 Turing Auditorium
-    (1,  N'CS-101', N'Projector',            2, N'Good'),
-    (2,  N'CS-101', N'Microphone',           2, N'Good'),
-    (3,  N'CS-101', N'Whiteboard',           2, N'Good'),
-    (4,  N'CS-101', N'Computer',             1, N'Good'),
-    (5,  N'CS-101', N'Livestreaming Equipment', 1, N'Fair'),
-    (6,  N'CS-101', N'Air Conditioner',      2, N'Good'),
+    (1,  N'CS-101', N'Projector',            N'Good'),
+    (2,  N'CS-101', N'Microphone',           N'Good'),
+    (3,  N'CS-101', N'Whiteboard',           N'Good'),
+    (4,  N'CS-101', N'Computer',             N'Good'),
+    (5,  N'CS-101', N'Livestreaming Equipment', N'Fair'),
+    (6,  N'CS-101', N'Air Conditioner',      N'Good'),
 
     -- CS-202 Hopper Classroom
-    (7,  N'CS-202', N'Projector',            1, N'Good'),
-    (8,  N'CS-202', N'Whiteboard',           1, N'Good'),
-    (9,  N'CS-202', N'Computer',             1, N'Fair'),
+    (7,  N'CS-202', N'Projector',            N'Good'),
+    (8,  N'CS-202', N'Whiteboard',           N'Good'),
+    (9,  N'CS-202', N'Computer',             N'Fair'),
 
     -- CS-205 Lovelace Computer Lab
-    (10, N'CS-205', N'Computer',             30, N'Good'),
-    (11, N'CS-205', N'Projector',            1, N'Good'),
-    (12, N'CS-205', N'Whiteboard',           1, N'Good'),
-    (13, N'CS-205', N'Air Conditioner',      1, N'Good'),
+    (10, N'CS-205', N'Computer',             N'Good'),
+    (11, N'CS-205', N'Projector',            N'Good'),
+    (12, N'CS-205', N'Whiteboard',           N'Good'),
+    (13, N'CS-205', N'Air Conditioner',      N'Good'),
 
     -- CS-B01 Babbage Project Lab
-    (14, N'CS-B01', N'3D Printer',           3, N'Good'),
-    (15, N'CS-B01', N'Soldering Station',     5, N'Good'),
-    (16, N'CS-B01', N'Computer',             4, N'Good'),
+    (14, N'CS-B01', N'3D Printer',           N'Good'),
+    (15, N'CS-B01', N'Soldering Station',     N'Good'),
+    (16, N'CS-B01', N'Computer',             N'Good'),
 
-    -- LIB-301 Study Nook (no facilities — minimal setup)
-    -- Intentionally empty to test spaces with zero facilities.
+    -- LIB-301 Study Nook — intentionally no facilities (edge case)
 
-    -- ADM-100 Executive Meeting Room
-    (17, N'ADM-100', N'Projector',           1, N'Good'),
-    (18, N'ADM-100', N'Microphone',          1, N'Good'),
-    (19, N'ADM-100', N'Video Conferencing System', 1, N'Good'),
+    -- ADM-100 Meeting Room Alpha
+    (17, N'ADM-100', N'Projector',           N'Good'),
+    (18, N'ADM-100', N'Microphone',          N'Good'),
+    (19, N'ADM-100', N'Video Conferencing System', N'Good'),
 
-    -- CS-210 Shannon Classroom (under maintenance — facilities may have issues)
-    (20, N'CS-210', N'Projector',            1, N'Broken'),
-    (21, N'CS-210', N'Whiteboard',           1, N'Good'),
-    (22, N'CS-210', N'Air Conditioner',      1, N'Broken'),
+    -- CS-210 Shannon Classroom
+    (20, N'CS-210', N'Projector',            N'Broken'),
+    (21, N'CS-210', N'Whiteboard',           N'Good'),
+    (22, N'CS-210', N'Air Conditioner',      N'Broken'),
 
     -- CS-203 Tesla Computer Lab (temporarily closed)
-    (23, N'CS-203', N'Computer',             25, N'Fair'),
-    (24, N'CS-203', N'Projector',            1, N'Good');
-
+    (23, N'CS-203', N'Computer',             N'Fair'),
+    (24, N'CS-203', N'Projector',            N'Good');
 GO
 
 SET IDENTITY_INSERT Facilities OFF;
 GO
 
 -- ============================================================================
--- 4. BOOKINGS
+-- 4. MAINTENANCE RECORDS
+-- ============================================================================
+-- Note: The trigger trg_Maintenance_SyncSpaceStatus fires on INSERT/UPDATE.
+-- Inserting a maintenance with status 'Reported' or 'In Progress' will
+-- automatically set the Space's current_status to 'Under Maintenance'.
+-- Inserting a maintenance with status 'Completed' or 'Cancelled' will
+-- revert the Space to 'Available' if no other active maintenance exists.
+-- ============================================================================
+SET IDENTITY_INSERT MaintenanceRecords ON;
+GO
+
+INSERT INTO MaintenanceRecords (maintenance_id, space_code, reporter_id,
+    assigned_staff_id, problem_description, problem_type,
+    start_time, completion_time, status, result_note)
+VALUES
+    -- M1: Active maintenance — will trigger CS-210 → 'Under Maintenance'
+    (1,
+     N'CS-210',
+     1,     -- Dr. Alan Turing reported
+     9,     -- John von Neumann assigned
+     N'Projector lamp flickers and image quality is degraded. AC also blows warm air.',
+     N'Broken Projector',
+     '2026-06-28 14:00:00',
+     NULL,
+     N'In Progress',
+     N'Replacement lamp ordered. AC technician scheduled.'),
+
+    -- M2: Completed maintenance for CS-210 (past, does not affect current status
+    --     because M1 is still active)
+    (2,
+     N'CS-210',
+     5,     -- Marie Curie reported
+     3,     -- Ada Lovelace assigned
+     N'Air conditioning not cooling. Room reached 30°C during exam.',
+     N'Air-Conditioning Failure',
+     '2026-06-20 09:00:00',
+     '2026-06-22 16:00:00',
+     N'Completed',
+     N'AC compressor replaced. System cooling normally.'),
+
+    -- M3: Active maintenance — will trigger CS-B01 → 'Under Maintenance'
+    (3,
+     N'CS-B01',
+     6,     -- Nikola Tesla reported
+     NULL,  -- Not yet assigned
+     N'3D printer #2 extruder clogged. Soldering station #4 iron tip broken.',
+     N'Other',
+     NULL,
+     NULL,
+     N'Reported',
+     NULL),
+
+    -- M4: Completed maintenance for CS-205 (past, no effect on current status)
+    (4,
+     N'CS-205',
+     2,     -- Grace Hopper reported
+     9,     -- John von Neumann assigned
+     N'Intermittent network connectivity. Students cannot reach remote servers.',
+     N'Network Problem',
+     '2026-06-18 11:00:00',
+     '2026-06-18 15:30:00',
+     N'Completed',
+     N'Replaced faulty switch. All 30 workstations reconnected.'),
+
+    -- M5: Completed maintenance for LIB-301 (past, no effect)
+    (5,
+     N'LIB-301',
+     2,     -- Grace Hopper reported
+     9,     -- John von Neumann assigned
+     N'Spilled drink on desks #3 and #4. Sticky residue.',
+     N'Cleaning Issue',
+     '2026-06-21 16:00:00',
+     '2026-06-21 17:30:00',
+     N'Completed',
+     N'Desks cleaned and sanitized.'),
+
+    -- M6: Completed maintenance for retired space CS-001 (historical)
+    (6,
+     N'CS-001',
+     3,     -- Ada Lovelace reported
+     3,     -- Self-assigned
+     N'Final decommissioning — remove all furniture and equipment.',
+     N'Other',
+     '2026-05-30 09:00:00',
+     '2026-05-30 17:00:00',
+     N'Completed',
+     N'All furniture removed. Space marked as Retired.'),
+
+    -- M7: Cancelled maintenance for CS-202
+    (7,
+     N'CS-202',
+     7,     -- Alan Kay reported
+     3,     -- Ada Lovelace assigned
+     N'Whiteboard marker dry — requesting replacement.',
+     N'Other',
+     '2026-06-19 08:00:00',
+     '2026-06-19 08:30:00',
+     N'Cancelled',
+     N'Cleaning staff replaced markers. No maintenance needed.');
+GO
+
+SET IDENTITY_INSERT MaintenanceRecords OFF;
+GO
+
+-- ============================================================================
+-- 5. BOOKINGS
+-- ============================================================================
+-- Note: The trigger trg_Booking_PreventOverlap fires on INSERT/UPDATE.
+-- It prevents setting a booking to 'Approved' or 'Checked In' if another
+-- approved/checked-in booking exists for the same space with overlapping
+-- time.  All Pending/Rejected/Cancelled bookings are allowed regardless
+-- of overlap.
 -- ============================================================================
 SET IDENTITY_INSERT Bookings ON;
 GO
-
--- Reference date: all dates are relative to 2026-06-30 (today per env).
--- Past: last week (2026-06-23), two weeks ago (2026-06-16)
--- Future: next week (2026-07-07), two weeks from now (2026-07-14)
 
 INSERT INTO Bookings (booking_id, requester_id, space_code,
     requested_start_time, requested_end_time,
@@ -138,82 +231,83 @@ INSERT INTO Bookings (booking_id, requester_id, space_code,
     actual_start_time, check_in_person_id, initial_condition,
     actual_end_time, final_condition, usage_notes)
 VALUES
-    -- =======================================================================
-    -- SCENARIO 1: Completed booking — Full lifecycle (Lecture in Auditorium)
-    -- =======================================================================
+    -- ===================================================================
+    -- B1: Completed — full lifecycle (Pending → Approved → Checked In → Completed)
+    -- Lecturer lecture in auditorium.
+    -- ===================================================================
     (1,
-     1,        -- Dr. Alan Turing (Lecturer)
+     1,        -- Dr. Alan Turing
      N'CS-101',
      '2026-06-23 09:00:00', '2026-06-23 11:00:00',
      N'CS301 — Introduction to Database Systems lecture',
      180, N'Lecture', N'Completed',
-     11,       -- Charles Babbage approved
+     4,        -- Charles Babbage approved
      '2026-06-16 10:00:00',
      N'Approved — standard lecture slot.',
-     NULL,     -- Not rejected
-     '2026-06-23 08:55:00', 8,  -- Ada Lovelace (staff) checked in
-     N'All equipment functional. Room clean.',
-     '2026-06-23 11:10:00', 8,
-     N'All equipment returned. Room tidy.',
-     N'Lecture finished on time. Students left promptly.'),
+     NULL,
+     '2026-06-23 08:55:00', 3,  -- Ada Lovelace checked in
+     N'All equipment functional. Room clean and ready.',
+     '2026-06-23 11:10:00', 
+     N'Projector off. Whiteboard cleaned. Room tidy.',
+     N'180 students attended. Finished on time.'),
 
-    -- =======================================================================
-    -- SCENARIO 2: Completed booking — Student activity
-    -- =======================================================================
+    -- ===================================================================
+    -- B2: Completed — student activity in computer lab
+    -- ===================================================================
     (2,
-     4,        -- Grace Hopper (Student)
+     2,        -- Grace Hopper
      N'CS-205',
      '2026-06-23 14:00:00', '2026-06-23 17:00:00',
      N'Student coding workshop — hackathon preparation',
      25, N'Student Activity', N'Completed',
-     8,        -- Ada Lovelace (staff) approved
+     3,        -- Ada Lovelace approved
      '2026-06-17 09:30:00',
-     N'Approved. Ensure no food or drink in the lab.',
+     N'Approved. No food or drink in the lab.',
      NULL,
      '2026-06-23 14:05:00', 9,  -- John von Neumann checked in
-     N'All 30 workstations operational.',
-     '2026-06-23 17:15:00', 9,
-     N'Workstations shut down properly. Minor cable mess — tidied.',
-     N'Productive session. Students used 20 workstations.'),
+     N'All 30 workstations operational. Lab clean.',
+     '2026-06-23 17:15:00', 
+     N'Workstations shut down. Cables tidied.',
+     N'Productive session. 20 workstations used.'),
 
-    -- =======================================================================
-    -- SCENARIO 3: Currently checked in — Seminar in progress (today)
-    -- =======================================================================
+    -- ===================================================================
+    -- B3: Checked In — seminar in progress (today)
+    -- ===================================================================
     (3,
-     7,        -- Nikola Tesla (TA)
+     6,        -- Nikola Tesla (TA)
      N'CS-205',
-     '2026-06-30 10:00:00', '2026-06-30 12:00:00',
+     '2026-07-01 10:00:00', '2026-07-01 12:00:00',
      N'TA-led seminar on advanced SQL query optimization',
      15, N'Seminar', N'Checked In',
-     11,       -- Charles Babbage approved
+     4,        -- Charles Babbage approved
      '2026-06-25 14:00:00',
-     N'Approved — TA-led seminar, low headcount.',
+     N'Approved — TA seminar, low headcount.',
      NULL,
-     '2026-06-30 10:02:00', 8,  -- Ada Lovelace checked in
-     N'Lab is clean. 15 computers powered on and ready.',
-     NULL, NULL, NULL,  -- Not completed yet
+     '2026-07-01 10:02:00', 3,  -- Ada Lovelace checked in
+     N'Lab clean. 15 computers ready.',
+     NULL, NULL,  -- Not yet completed
      NULL),
 
-    -- =======================================================================
-    -- SCENARIO 4: Approved future booking — Workshop next week
-    -- =======================================================================
+    -- ===================================================================
+    -- B4: Approved — future workshop
+    -- ===================================================================
     (4,
-     5,        -- Marie Curie (Student)
+     5,        -- Marie Curie
      N'CS-101',
      '2026-07-07 13:00:00', '2026-07-07 17:00:00',
      N'Introduction to Quantum Computing — student workshop',
      80, N'Workshop', N'Approved',
-     8,        -- Ada Lovelace approved
+     3,        -- Ada Lovelace approved
      '2026-06-28 11:00:00',
-     N'Approved. Expected 80 participants fits within capacity (200).',
+     N'Approved. 80 participants within capacity of 200.',
      NULL,
      NULL, NULL, NULL, NULL, NULL, NULL),
 
-    -- =======================================================================
-    -- SCENARIO 5: Pending future booking — awaiting staff approval
-    -- =======================================================================
+    -- ===================================================================
+    -- B5: Pending — awaiting staff review
+    -- ===================================================================
     (5,
-     4,        -- Grace Hopper (Student)
+     2,        -- Grace Hopper
      N'LIB-301',
      '2026-07-08 14:00:00', '2026-07-08 16:00:00',
      N'Group study session for database project',
@@ -221,41 +315,41 @@ VALUES
      NULL, NULL, NULL, NULL,
      NULL, NULL, NULL, NULL, NULL, NULL),
 
-    -- =======================================================================
-    -- SCENARIO 6: Rejected booking — with reason
-    -- =======================================================================
+    -- ===================================================================
+    -- B6: Rejected — with full reason
+    -- ===================================================================
     (6,
-     4,        -- Grace Hopper (Student)
+     2,        -- Grace Hopper
      N'CS-101',
      '2026-06-16 09:00:00', '2026-06-16 12:00:00',
-     N'Student club meeting — Gaming Society event',
+     N'Gaming Society club meeting',
      150, N'Student Activity', N'Rejected',
-     11,       -- Charles Babbage rejected
+     4,        -- Charles Babbage rejected
      '2026-06-14 08:00:00',
-     N'Rejected — request does not align with academic use policy.',
-     N'Space usage policy restricts student society events in auditoriums to after-hours. Requested time conflicts with scheduled examination period. Please rebook for after 18:00 or select a different space.',
+     N'Rejected — does not align with academic use policy.',
+     N'Student society events in auditoriums are restricted to after-hours (after 18:00). Requested time conflicts with scheduled examination period. Please rebook after 18:00 or select a different space.',
      NULL, NULL, NULL, NULL, NULL, NULL),
 
-    -- =======================================================================
-    -- SCENARIO 7: Cancelled booking — was approved then cancelled
-    -- =======================================================================
+    -- ===================================================================
+    -- B7: Cancelled — was approved then cancelled
+    -- ===================================================================
     (7,
-     10,       -- Alan Kay (Dept Admin)
+     7,        -- Alan Kay (Dept Admin)
      N'ADM-100',
      '2026-06-24 10:00:00', '2026-06-24 12:00:00',
      N'Department curriculum committee meeting',
      12, N'Meeting', N'Cancelled',
-     8,        -- Ada Lovelace approved
+     3,        -- Ada Lovelace approved
      '2026-06-20 09:00:00',
      N'Approved — administrative meeting.',
      NULL,
      NULL, NULL, NULL, NULL, NULL, NULL),
 
-    -- =======================================================================
-    -- SCENARIO 8: No-show booking — was approved but never checked in
-    -- =======================================================================
+    -- ===================================================================
+    -- B8: No-Show — was approved but never checked in
+    -- ===================================================================
     (8,
-     5,        -- Marie Curie (Student)
+     5,        -- Marie Curie
      N'CS-101',
      '2026-06-16 14:00:00', '2026-06-16 16:00:00',
      N'Practice examination — mock test for CS301',
@@ -266,45 +360,46 @@ VALUES
      NULL,
      NULL, NULL, NULL, NULL, NULL, NULL),
 
-    -- =======================================================================
-    -- SCENARIO 9: Pending that overlaps an approved booking (conflict test)
-    -- This booking for CS-101 on 2026-07-07 overlaps with booking 4
-    -- (13:00-17:00). Tests conflict-detection logic (E1 in app/trigger).
-    -- =======================================================================
+    -- ===================================================================
+    -- B9: Pending overlap test — same space, same day, overlapping time
+    --     as B4 (Approved 13:00–17:00). This should be rejected by
+    --     trg_Booking_PreventOverlap if anyone tries to approve it.
+    -- ===================================================================
     (9,
-     6,        -- Linus Torvalds (Student)
+     8,        -- Dr. Dennis Ritchie
      N'CS-101',
      '2026-07-07 14:00:00', '2026-07-07 16:00:00',
-     N'Linux Users Group meeting',
-     30, N'Student Activity', N'Pending',
+     N'C guest lecture — memory management in C',
+     40, N'Lecture', N'Pending',
      NULL, NULL, NULL, NULL,
      NULL, NULL, NULL, NULL, NULL, NULL),
 
-    -- =======================================================================
-    -- SCENARIO 10: Pending for a space under maintenance (blocked by E2)
-    -- CS-210 is "Under Maintenance" — should be rejected by business logic.
-    -- =======================================================================
+    -- ===================================================================
+    -- B10: Pending maintenance block test — CS-210 is Under Maintenance
+    --      (via trigger from M1). Booking should be rejected at approval
+    --      time by business logic or app-level check.
+    -- ===================================================================
     (10,
-     5,        -- Marie Curie (Student)
+     8,        -- Dr. Dennis Ritchie
      N'CS-210',
      '2026-07-10 09:00:00', '2026-07-10 11:00:00',
-     N'Small group tutoring session',
+     N'Tutoring session for operating systems',
      20, N'Lecture', N'Pending',
      NULL, NULL, NULL, NULL,
      NULL, NULL, NULL, NULL, NULL, NULL),
 
-    -- =======================================================================
-    -- SCENARIO 11: Lecturer future lecture (approved)
-    -- =======================================================================
+    -- ===================================================================
+    -- B11: Approved — future lecture
+    -- ===================================================================
     (11,
-     2,        -- Dr. Dennis Ritchie (Lecturer)
+     8,        -- Dr. Dennis Ritchie
      N'CS-202',
      '2026-07-14 08:00:00', '2026-07-14 10:00:00',
      N'CS450 — Operating Systems lecture',
      55, N'Lecture', N'Approved',
-     11,       -- Charles Babbage approved
+     4,        -- Charles Babbage approved
      '2026-06-29 09:00:00',
-     N'Approved — recurring lecture slot.',
+     N'Approved — confirmed recurring lecture.',
      NULL,
      NULL, NULL, NULL, NULL, NULL, NULL);
 
@@ -314,157 +409,31 @@ SET IDENTITY_INSERT Bookings OFF;
 GO
 
 -- ============================================================================
--- 5. MAINTENANCE RECORDS
+-- 6. DATA COVERAGE SUMMARY
 -- ============================================================================
-SET IDENTITY_INSERT MaintenanceRecords ON;
-GO
-
-INSERT INTO MaintenanceRecords (maintenance_id, space_code, reporter_id,
-    assigned_staff_id, problem_description, problem_type,
-    start_time, completion_time, status, result_note)
-VALUES
-    -- =======================================================================
-    -- SCENARIO M1: Completed maintenance — AC repair
-    -- =======================================================================
-    (1,
-     N'CS-210',     -- Shannon Classroom
-     4,             -- Grace Hopper reported (student)
-     8,             -- Ada Lovelace assigned (staff)
-     N'Air conditioning is not cooling the room. Temperature reached 31°C during yesterday''s lecture.',
-     N'Air-Conditioning Failure',
-     '2026-06-20 09:00:00',
-     '2026-06-22 16:00:00',
-     N'Completed',
-     N'AC compressor replaced. System now cooling to 22°C. Room returned to service.'),
-
-    -- =======================================================================
-    -- SCENARIO M2: Active maintenance (In Progress) — currently blocking
-    -- This keeps CS-210 in a non-bookable state.
-    -- =======================================================================
-    (2,
-     N'CS-210',     -- Shannon Classroom (second issue)
-     1,             -- Dr. Alan Turing reported
-     9,             -- John von Neumann assigned
-     N'Projector lamp flickers intermittently. Image quality degraded.',
-     N'Broken Projector',
-     '2026-06-28 14:00:00',
-     NULL,          -- Not yet completed
-     N'In Progress',
-     N'Replacement lamp ordered. Expected delivery in 3 days.'),
-
-    -- =======================================================================
-    -- SCENARIO M3: Reported — not yet assigned
-    -- =======================================================================
-    (3,
-     N'CS-205',     -- Lovelace Computer Lab
-     7,             -- Nikola Tesla (TA) reported
-     NULL,          -- Not yet assigned
-     N'Workstation #12 bluescreens on boot. Keyboard on #7 has several non-functional keys.',
-     N'Other',
-     NULL, NULL,    -- Not started yet
-     N'Reported',
-     NULL),
-
-    -- =======================================================================
-    -- SCENARIO M4: Completed maintenance — network fix
-    -- =======================================================================
-    (4,
-     N'CS-205',     -- Lovelace Computer Lab
-     4,             -- Grace Hopper reported
-     9,             -- John von Neumann assigned
-     N'Network connectivity intermittent in the lab. Students cannot access remote servers.',
-     N'Network Problem',
-     '2026-06-18 11:00:00',
-     '2026-06-18 15:30:00',
-     N'Completed',
-     N'Replaced faulty switch in rack #2. All 30 workstations reconnected and tested.'),
-
-    -- =======================================================================
-    -- SCENARIO M5: Cancelled maintenance
-    -- =======================================================================
-    (5,
-     N'CS-202',     -- Hopper Classroom
-     10,            -- Alan Kay (Dept Admin) reported
-     8,             -- Ada Lovelace assigned
-     N'One of the whiteboard markers was dry. Requesting replacement.',
-     N'Other',
-     '2026-06-19 08:00:00',
-     '2026-06-19 08:30:00',
-     N'Cancelled',
-     N'Issue resolved without maintenance — cleaning staff replaced markers.'),
-
-    -- =======================================================================
-    -- SCENARIO M6: Maintenance for a retired space (historical record)
-    -- =======================================================================
-    (6,
-     N'CS-001',     -- Legacy Classroom (Retired)
-     8,             -- Ada Lovelace reported (staff)
-     8,             -- Self-assigned
-     N'Final inspection before room decommissioning — all furniture to be removed.',
-     N'Other',
-     '2026-05-30 09:00:00',
-     '2026-05-30 17:00:00',
-     N'Completed',
-     N'All furniture removed. Room inspected and marked as retired in the system.'),
-
-    -- =======================================================================
-    -- SCENARIO M7: Cleaning issue — completed (past)
-    -- =======================================================================
-    (7,
-     N'LIB-301',    -- Study Nook
-     4,             -- Grace Hopper reported
-     9,             -- John von Neumann assigned
-     N'Spilled drink on study desks. Sticky residue on desks #3 and #4.',
-     N'Cleaning Issue',
-     '2026-06-21 16:00:00',
-     '2026-06-21 17:30:00',
-     N'Completed',
-     N'Desks cleaned and sanitized. Area ready for use.');
-
-GO
-
-SET IDENTITY_INSERT MaintenanceRecords OFF;
-GO
-
--- ============================================================================
--- 6. DATA SUMMARY — Coverage Checklist
--- ============================================================================
--- +----------------------+----------------------------------------------+
--- | Category             | Scenarios Covered                           |
--- +----------------------+----------------------------------------------+
--- | User roles           | Lecturer, Student, TA, Facility Staff,       |
--- |                      | Dept Admin, Facility Manager, Suspended      |
--- +----------------------+----------------------------------------------+
--- | Space types          | Auditorium, Classroom, Computer Lab,         |
--- |                      | Project Lab, Student Workspace, Meeting Room |
--- +----------------------+----------------------------------------------+
--- | Space statuses       | Available, Under Maintenance, Temporarily    |
--- |                      | Closed, Retired                              |
--- +----------------------+----------------------------------------------+
--- | Facility coverage    | Spaces with many facilities; LIB-301 has     |
--- |                      | none (edge: zero-facility space)             |
--- +----------------------+----------------------------------------------+
--- | Booking statuses     | Pending, Approved, Rejected, Cancelled,      |
--- |                      | Checked In, Completed, No-Show               |
--- +----------------------+----------------------------------------------+
--- | Booking types        | Lecture, Examination, Seminar, Workshop,     |
--- |                      | Meeting, Student Activity                    |
--- +----------------------+----------------------------------------------+
--- | Booking lifecycle    | Full flow (Pending→Approved→CheckedIn→       |
--- | lifecycle            | Completed); rejected; cancelled; no-show     |
--- +----------------------+----------------------------------------------+
--- | Conflict tests       | Booking 9 overlaps Booking 4 (same space,    |
--- |                      | same day, overlapping time)                  |
--- +----------------------+----------------------------------------------+
--- | Maintenance block    | Booking 10 requests CS-210 which is          |
--- | test                 | "Under Maintenance" with active work         |
--- +----------------------+----------------------------------------------+
--- | Maintenance statuses | Reported, In Progress, Completed, Cancelled  |
--- +----------------------+----------------------------------------------+
--- | Maintenance types    | AC Failure, Broken Projector, Network        |
--- |                      | Problem, Cleaning Issue, Other               |
--- +----------------------+----------------------------------------------+
--- | Suspended user       | User 12 (Suspended User) can still exist     |
--- |                      | but should not be able to book (app logic)   |
--- +----------------------+----------------------------------------------+
+--
+-- Users:       11 (Lecturer ×3, Student ×3, TA ×1, Facility Staff ×2,
+--                   Dept Admin ×1, Facility Manager ×1, Suspended Student ×1)
+-- Spaces:       9 (Auditorium, Classroom ×2, Computer Lab ×2, Project Lab,
+--                   Student Workspace, Meeting Room; statuses: Available ×6,
+--                   Under Maintenance ×1 [via trigger], Retired ×1,
+--                   Temporarily Closed ×1)
+-- Facilities:  24 (across 8 spaces; LIB-301 has zero — edge case)
+-- Bookings:    11 (Completed ×2, Checked In ×1, Approved ×2, Pending ×3,
+--                   Rejected ×1, Cancelled ×1, No-Show ×1)
+-- Maintenance:  7 (Reported ×1 [active], In Progress ×1 [active],
+--                   Completed ×4, Cancelled ×1)
+--
+-- Trigger test scenarios:
+--   - trg_Maintenance_SyncSpaceStatus: M1 (In Progress) → CS-210 becomes
+--     Under Maintenance. M3 (Reported) → CS-B01 becomes Under Maintenance.
+--   - trg_Booking_PreventOverlap: B9 (Pending) overlaps B4 (Approved) on
+--     CS-101 at the same day. Approving B9 would trigger a conflict.
+--
+-- Business rule test scenarios:
+--   - BR3 (conflict):  B9 overlaps B4 on CS-101
+--   - BR2/BR7 (block): B10 targets CS-210 which is Under Maintenance
+--   - BR5 (approval):  B6 (Rejected) has non-null rejection_reason
+--   - BR6 (check-in):  B1 (Completed) has full check-in/check-out trail
+--   - BR10 (susp.):    User 10 (Suspended) has no bookings
 -- ============================================================================
