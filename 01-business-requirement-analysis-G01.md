@@ -139,9 +139,9 @@ A record of maintenance work performed on a space.
 
 1. **Unique User Identity**: Each user must have a university account. User ID is unique across the system.
 
-2. **Space Status Prevents Booking**: A space whose `Current Status` is `Under Maintenance`, `Temporarily Closed`, or `Retired` cannot be booked.
+2. **Space Status Prevents Booking**: A space whose `Current Status` is `Under Maintenance`, `Temporarily Closed`, or `Retired` cannot be booked. A space is automatically marked as Under Maintenance in the Space table whenever a Maintenance Record is created or updated with a status of Reported or In Progress.
 
-3. **Conflict Prevention**: The same space cannot have two approved bookings with overlapping time periods. The system must reject or flag any new booking that overlaps an existing approved booking for the same space.
+3. **Conflict Prevention**: The same space cannot have two approved bookings with overlapping time periods. The system must reject or flag any new booking that overlaps an existing approved booking for the same space. 
 
 4. **Booking Status Lifecycle**:
    - A newly submitted booking starts as `Pending`.
@@ -155,7 +155,8 @@ A record of maintenance work performed on a space.
 
 6. **Check-In/Check-Out Recording**: On check-in, the system records actual start time, who checked in, and the initial condition of the space. On completion, it records actual end time, final condition, and usage notes.
 
-7. **Request Booking Block by Maintenance Status**: A space that has an active (non-completed) maintenance record with status `In Progress` or `Reported` is considered under maintenance and cannot accept booking requests.
+7. **Request Booking Block by Maintenance Status**: A space that has an active (non-completed) maintenance record with status `In Progress` or `Reported` is considered under maintenance and cannot accept booking requests. When a Maintenance Record status is updated to Completed or Cancelled, the system checks if any other active maintenance records exist for that space. If none exist, the Space.Current Status automatically reverts to Available.
+
 
 8. **Historical Retention**: The system must keep historical records of all past bookings and maintenance activities (no hard deletion of completed records).
 
