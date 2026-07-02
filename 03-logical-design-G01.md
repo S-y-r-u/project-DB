@@ -94,8 +94,8 @@ Five relations derived from the conceptual ERD:
 **Referential integrity**:
 - `requester_id` → Users: ON DELETE NO ACTION (preserve booking history)
 - `space_code` → Spaces: ON DELETE NO ACTION
-- `approver_id` → Users: ON DELETE SET NULL
-- `check_in_person_id` → Users: ON DELETE SET NULL
+- `approver_id` → Users: ON DELETE NO ACTION
+- `check_in_person_id` → Users: ON DELETE NO ACTION
 
 ---
 
@@ -130,8 +130,8 @@ Five relations derived from the conceptual ERD:
 | Facilities.space_code | Spaces | space_code | NO | CASCADE | CASCADE |
 | Bookings.requester_id | Users | user_id | NO | NO ACTION | NO ACTION |
 | Bookings.space_code | Spaces | space_code | NO | NO ACTION | CASCADE |
-| Bookings.approver_id | Users | user_id | YES | SET NULL | NO ACTION |
-| Bookings.check_in_person_id | Users | user_id | YES | SET NULL | NO ACTION |
+| Bookings.approver_id | Users | user_id | YES | NO ACTION | NO ACTION |
+| Bookings.check_in_person_id | Users | user_id | YES | NO ACTION | NO ACTION |
 | MaintenanceRecords.space_code | Spaces | space_code | NO | NO ACTION | CASCADE |
 | MaintenanceRecords.reporter_id | Users | user_id | NO | NO ACTION | NO ACTION |
 | MaintenanceRecords.assigned_staff_id | Users | user_id | YES | SET NULL | NO ACTION |
