@@ -8,7 +8,7 @@
 |---|---|---|---|
 | USER | Users | ✓ | All 7 attributes mapped correctly |
 | SPACE | Spaces | ✓ | All 9 attributes mapped correctly |
-| FACILITY | Facilities | ✓ | All 4 attributes mapped correctly |
+| FACILITY | Facilities | ✓ | All 3 attributes mapped correctly; 1 FK added for relationship |
 | BOOKING | Bookings | ✓ | All 16 attributes mapped; 4 FKs added for relationships |
 | MAINTENANCE | MaintenanceRecords | ✓ | All 7 attributes mapped; 3 FKs added for relationships |
 
@@ -17,8 +17,8 @@
 | ERD Relationship | Cardinality | FK Implementation | Nullable | Delete Rule | Status |
 |---|---|---|---|---|---|
 | submits | 1:N | Bookings.requester_id → Users.user_id | NO | NO ACTION | ✓ |
-| approves | 1:N (opt) | Bookings.approver_id → Users.user_id | YES | SET NULL | ✓ |
-| checks in | 1:N (opt) | Bookings.check_in_person_id → Users.user_id | YES | SET NULL | ✓ |
+| approves | 1:N (opt) | Bookings.approver_id → Users.user_id | YES | NO ACTION | ✓ |
+| checks in | 1:N (opt) | Bookings.check_in_person_id → Users.user_id | YES | NO ACTION | ✓ |
 | reports | 1:N | MaintenanceRecords.reporter_id → Users.user_id | NO | NO ACTION | ✓ |
 | assigned | 1:N (opt) | MaintenanceRecords.assigned_staff_id → Users.user_id | YES | SET NULL | ✓ |
 | books | 1:N | Bookings.space_code → Spaces.space_code | NO | NO ACTION | ✓ |
@@ -74,8 +74,8 @@
 | Facilities.space_code → Spaces | CASCADE | Facilities are dependent on a space | ✓ |
 | Bookings.requester_id → Users | NO ACTION | Preserve booking history | ✓ |
 | Bookings.space_code → Spaces | NO ACTION | Preserve booking history | ✓ |
-| Bookings.approver_id → Users | SET NULL | Keep booking if staff removed | ✓ |
-| Bookings.check_in_person_id → Users | SET NULL | Keep booking if staff removed | ✓ |
+| Bookings.approver_id → Users | NO ACTION | Preserve booking history | ✓ |
+| Bookings.check_in_person_id → Users | NO ACTION | Preserve booking history | ✓ |
 | MaintenanceRecords.space_code → Spaces | NO ACTION | Preserve maintenance history | ✓ |
 | MaintenanceRecords.reporter_id → Users | NO ACTION | Preserve maintenance history | ✓ |
 | MaintenanceRecords.assigned_staff_id → Users | SET NULL | Keep record if staff removed | ✓ |
