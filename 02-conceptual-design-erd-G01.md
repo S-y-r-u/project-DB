@@ -32,7 +32,7 @@ erDiagram
         string condition
     }
 
-    BOOKING {
+    BOOKING_REQUEST {
         int booking_id PK
         datetime requested_start_time
         datetime requested_end_time
@@ -40,12 +40,21 @@ erDiagram
         int expected_participants
         string booking_type
         string status
+    }
+    
+    BOOKING_APPROVAL {
+        int approval_id PK
         datetime decision_time
+        string decision
         string decision_note
         string rejection_reason
+    }
+    
+    USAGE_SESSION {
+        int session_id PK
         datetime actual_start_time
-        datetime actual_end_time
         string initial_condition
+        datetime actual_end_time
         string final_condition
         string usage_notes
     }
@@ -60,14 +69,20 @@ erDiagram
         string result_note
     }
 
-    USER ||--o{ BOOKING : "submits"
-    USER |o--o{ BOOKING : "approves"
-    USER |o--o{ BOOKING : "checks in"
+    USER ||--o{ BOOKING_REQUEST : "submits"
+    USER |o--o{ BOOKING_APPROVAL : "decides"
+    USER |o--o{ USAGE_SESSION : "checks in"
     USER ||--o{ MAINTENANCE : "reports"
     USER |o--o{ MAINTENANCE : "assigned"
-    SPACE ||--o{ BOOKING : "books"
+    
+    SPACE ||--o{ BOOKING_REQUEST : "books"
     SPACE ||--o{ FACILITY : "contains"
     SPACE ||--o{ MAINTENANCE : "undergoes"
+    
+    BOOKING_REQUEST ||--o| BOOKING_APPROVAL : "requires"
+    BOOKING_REQUEST ||--o| USAGE_SESSION : "tracks"
+    
+    FACILITY |o--o{ MAINTENANCE : "concerns"
 ```
 
 ---
@@ -112,11 +127,11 @@ A piece of equipment or amenity installed in a space (e.g., projector, whiteboar
 |---|---|---|---|
 | facility_id | Unique identifier | Integer | PK |
 | facility_name | Name of the facility | String | Not null |
-| condition | Current working condition | String | Optional |
+| condition | Current working condition snapshot | String | Optional |
 
-### 2.4 Booking
+### 2.4 Booking Request
 
-A request to use a space during a specific time period, along with check-in/check-out tracking.
+A request to use a space during a specific time period.
 
 | Attribute | Description | Type | Constraints |
 |---|---|---|---|
@@ -127,16 +142,32 @@ A request to use a space during a specific time period, along with check-in/chec
 | expected_participants | Number of people expected | Integer | Not null, > 0 |
 | booking_type | Category of the booking | String (enum) | Not null |
 | status | Current state of the booking | String (enum) | Not null |
-| decision_time | When the approval/rejection was made | DateTime | Optional |
+
+### 2.5 Booking Approval
+
+Records the approval workflow details for a specific Booking Request.
+
+| Attribute | Description | Type | Constraints |
+|---|---|---|---|
+| approval_id | Unique identifier | Integer | PK |
+| decision_time | When the approval/rejection was made | DateTime | Not null |
+| decision | The outcome of the review | String (enum) | Not null |
 | decision_note | Notes accompanying the decision | Text | Optional |
 | rejection_reason | Reason if rejected | Text | Optional |
-| actual_start_time | When the booking was checked in | DateTime | Optional |
+
+### 2.6 Usage Session
+Captures the actual physical usage of the space (check-in and check-out).
+
+| Attribute | Description | Type | Constraints |
+|---|---|---|---|
+| session_id | Unique identifier | Integer | PK |
+| actual_start_time | When the booking was checked in | DateTime | Not null |
+| initial_condition | Space condition at check-in | Text | Not null |
 | actual_end_time | When the booking was completed | DateTime | Optional |
-| initial_condition | Space condition at check-in | Text | Optional |
 | final_condition | Space condition at check-out | Text | Optional |
 | usage_notes | Notes about the session | Text | Optional |
 
-### 2.5 Maintenance
+### 2.7 Maintenance
 
 A record of maintenance work performed on a space.
 
@@ -156,14 +187,17 @@ A record of maintenance work performed on a space.
 
 | Relationship | Left Entity | Left Card. | Right Entity | Right Card. | Description |
 |---|---|---|---|---|---|
-| submits | USER | `\|\|` (exactly one) | BOOKING | `o{` (zero or more) | One user can submit many bookings; a booking must have exactly one requester. |
-| approves | USER | `\|o` (zero or one) | BOOKING | `o{` (zero or more) | One staff member may approve/reject many bookings; a booking may have at most one approver. |
-| checks in | USER | `\|o` (zero or one) | BOOKING | `o{` (zero or more) | One staff member may check in many bookings; a booking may be checked in by at most one staff member. |
-| reports | USER | `\|\|` (exactly one) | MAINTENANCE | `o{` (zero or more) | One user can report many maintenance issues; a maintenance record must have exactly one reporter. |
-| assigned | USER | `\|o` (zero or one) | MAINTENANCE | `o{` (zero or more) | One staff member may be assigned to many maintenance records; a maintenance record may have at most one assignee. |
-| books | SPACE | `\|\|` (exactly one) | BOOKING | `o{` (zero or more) | One space may have many bookings; a booking must be for exactly one space. |
-| contains | SPACE | `\|\|` (exactly one) | FACILITY | `o{` (zero or more) | One space may contain many facilities; a facility must belong to exactly one space. |
-| undergoes | SPACE | `\|\|` (exactly one) | MAINTENANCE | `o{` (zero or more) | One space may have many maintenance records; a maintenance record must be for exactly one space. |
+| submits | USER | `\|\|` (exactly one) | BOOKING_REQUEST | `o{` (zero or more) | One user can submit many requests; a request must have exactly one requester. |
+| decides | USER | `\|o` (zero or one) | BOOKING_APPROVAL | `o{` (zero or more) | A staff member creates many approval records; an approval is made by exactly one staff member. |
+| checks in | USER | `\|o` (zero or one) | USAGE_SESSION | `o{` (zero or more) | A staff member checks in many sessions; a session is checked in by exactly one staff member. |
+| reports | USER | `\|\|` (exactly one) | MAINTENANCE | `o{` (zero or more) | A user can report many maintenance issues; a maintenance record must have exactly one reporter. |
+| assigned | USER | `\|o` (zero or one) | MAINTENANCE | `o{` (zero or more) | A staff member may be assigned many maintenance records; a maintenance record has at most one assignee. |
+| books | SPACE | `\|\|` (exactly one) | BOOKING_REQUEST | `o{` (zero or more) | A space may receive many requests; a request is for exactly one space. |
+| contains | SPACE | `\|\|` (exactly one) | FACILITY | `o{` (zero or more) | A space contains many facilities; a facility belongs to exactly one space. |
+| undergoes | SPACE | `\|\|` (exactly one) | MAINTENANCE | `o{` (zero or more) | A space has many maintenance records; a maintenance record references exactly one space. |
+| requires | BOOKING_REQUEST | `\|\|` (exactly one) | BOOKING_APPROVAL | `o\|` (zero or one) | A request may have one approval record; an approval maps to exactly one request. |
+| tracks | BOOKING_REQUEST | `\|\|` (exactly one) | USAGE_SESSION | `o\|` (zero or one) | A checked-in request has one session; a session maps to exactly one request. |
+| concerns | FACILITY | `\|o` (zero or one) | MAINTENANCE | `o{` (zero or more) | A specific facility might be tied to many maintenance records; a maintenance record might concern one specific facility item. |
 
 ### Crow's Foot Notation Legend
 
@@ -180,31 +214,39 @@ A record of maintenance work performed on a space.
 
 | Relationship | Entity | Participation | Meaning |
 |---|---|---|---|
-| submits | USER | Mandatory | Every booking has a non-null requester. |
-| submits | BOOKING | Optional | A user may have zero bookings. |
-| approves | USER | Optional | Not every user is an approver. |
-| approves | BOOKING | Optional | Not every booking has been decided. |
+| submits | USER | Mandatory | Every booking request has a non-null requester. |
+| submits | BOOKING_REQUEST | Optional | A user may have zero booking requests. |
+| decides | USER | Optional | Not every user creates approval records. |
+| decides | BOOKING_APPROVAL | Mandatory | Every approval record must be made by exactly one staff member. |
 | checks in | USER | Optional | Not every user performs check-ins. |
-| checks in | BOOKING | Optional | Not every booking has been checked in. |
+| checks in | USAGE_SESSION | Mandatory | Every usage session is checked in by exactly one staff member. |
 | reports | USER | Mandatory | Every maintenance record has a reporter. |
 | reports | MAINTENANCE | Optional | A user may have reported zero issues. |
 | assigned | USER | Optional | Not every user is assigned maintenance tasks. |
-| assigned | MAINTENANCE | Optional | Not every record has a staff assignee. |
-| books | SPACE | Mandatory | Every booking references one space. |
-| books | BOOKING | Optional | A space may have zero bookings. |
-| contains | SPACE | Mandatory | Every facility belongs to a space. |
+| assigned | MAINTENANCE | Optional | Not every maintenance record has a staff assignee. |
+| books | SPACE | Mandatory | Every booking request references exactly one space. |
+| books | BOOKING_REQUEST | Optional | A space may have zero booking requests. |
+| contains | SPACE | Mandatory | Every facility belongs to exactly one space. |
 | contains | FACILITY | Optional | A space may have zero facilities. |
-| undergoes | SPACE | Mandatory | Every maintenance record references a space. |
+| undergoes | SPACE | Mandatory | Every maintenance record references exactly one space. |
 | undergoes | MAINTENANCE | Optional | A space may have zero maintenance records. |
+| requires | BOOKING_REQUEST | Mandatory | Every approval record maps to exactly one booking request. |
+| requires | BOOKING_APPROVAL | Optional | Not every booking request has an approval record. |
+| tracks | BOOKING_REQUEST | Mandatory | Every usage session maps to exactly one booking request. |
+| tracks | USAGE_SESSION | Optional | Not every booking request has a usage session. |
+| concerns | FACILITY | Optional | A maintenance record might concern a specific facility, but it is not required. |
+| concerns | MAINTENANCE | Optional | A specific facility might be tied to zero maintenance records. |
 
 ---
 
 ## 5. Traceability Map
 
-| Entity | Traced From (in requirement analysis) |
+| Entity | Traced From |
 |---|---|
-| USER | Section 2 (Actors) + Section 3.1 (User attributes) + BR10 (account_status blocks requests) |
-| SPACE | Section 3.2 (bookable shared spaces) + BR2 (current_status blocks booking) + BR7 (maintenance-auto status) |
-| FACILITY | Section 3.3 (facilities: projector, whiteboard, etc.) |
-| BOOKING | Section 3.4 (Booking Request) + BR3 (conflict prevention) + BR4 (lifecycle) + BR5 (approval recording) + BR6 (check-in/out) |
-| MAINTENANCE | Section 3.5 (Maintenance Record) + BR2/BR7 (maintenance blocks booking) |
+| USER | Section 2 (Actors) + Section 3.1 (User attributes) + BR10 (Role-Based Actions) |
+| SPACE | Section 3.2 (bookable shared spaces) + BR2 (Unique Space Identity) + DR1 (Maintenance Status Synchronization) |
+| FACILITY | Section 3.3 (facilities) |
+| BOOKING_REQUEST | Section 3.4 (Booking Request) + BR4 (Conflict Prevention) + BR6 (Booking Status Lifecycle) |
+| BOOKING_APPROVAL | Section 3.5 (Booking Approval) + BR7 (Approval Recording) |
+| USAGE_SESSION | Section 3.6 (Usage Session) + BR8 (Check-In/Check-Out Recording) |
+| MAINTENANCE | Section 3.7 (Maintenance Record) + BR3 (Unavailable spaces cannot be booked) |

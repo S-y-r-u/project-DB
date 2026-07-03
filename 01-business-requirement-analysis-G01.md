@@ -20,6 +20,7 @@ The main goal is to manage shared campus spaces fairly, avoid overlapping bookin
 ---
 
 ## 2. Actors / User Roles
+Each user must have a university account.
 
 | Role | Description |
 |---|---|
@@ -90,19 +91,35 @@ A request to use a space during a specific time period.
 | Expected Participants | Number of people expected | Integer |
 | Booking Type | Category of the booking | Enum: Lecture, Examination, Seminar, Workshop, Meeting, Student Activity, Administrative Event |
 | Status | Current state of the booking | Enum: Pending, Approved, Rejected, Cancelled, Checked In, Completed, No-Show |
-| Approver ID | Staff member who approved/rejected | FK → User, nullable |
-| Decision Time | When the approval/rejection decision was made | DateTime, nullable |
+
+### 3.5 Booking Approval
+Records the approval workflow details for a specific Booking Request.
+
+| Attribute | Description | Type / Notes |
+|---|---|---|
+| Approval ID | Unique identifier | PK |
+| Booking ID | The associated booking request | FK → Booking Request |
+| Approver ID | Staff member who approved/rejected | FK → User |
+| Decision Time | When the approval/rejection decision was made | DateTime |
+| Decision | The outcome of the review | Enum: Approved, Rejected |
 | Decision Note | Notes accompanying the decision | Text, nullable |
 | Rejection Reason | Reason if booking was rejected | Text, nullable |
-| Actual Start Time | When the booking was checked in | DateTime, nullable |
-| Check-In Person ID | Who performed the check-in | FK → User, nullable |
-| Initial Condition | Condition of the space at check-in | Text, nullable |
+
+### 3.6 Usage Session
+Captures the actual physical usage of the space (check-in and check-out).
+
+| Attribute | Description | Type / Notes |
+|---|---|---|
+| Session ID | Unique identifier | PK |
+| Booking ID | The associated booking request | FK → Booking Request |
+| Check-In Person ID | Who performed the check-in | FK → User |
+| Actual Start Time | When the booking was checked in | DateTime |
+| Initial Condition | Condition of the space at check-in | Text |
 | Actual End Time | When the booking was completed | DateTime, nullable |
 | Final Condition | Condition of the space at check-out | Text, nullable |
 | Usage Notes | Any notes about the session | Text, nullable |
 
-### 3.5 Maintenance Record
-
+### 3.7 Maintenance Record
 A record of maintenance work performed on a space.
 
 | Attribute | Description | Type / Notes |
@@ -126,47 +143,63 @@ A record of maintenance work performed on a space.
 |---|---|---|---|---|
 | Submits | User | Booking Request | 1 : N | One user can submit many booking requests. A booking request belongs to exactly one user. |
 | Books | Space | Booking Request | 1 : N | One space can receive many booking requests. A booking request is for exactly one space. |
-| Approves | User (Staff) | Booking Request | 1 : N | One staff member can approve/reject many booking requests. A booking request may be approved/rejected by at most one staff member. |
+| Requires | Booking Request | Booking Approval | 1 : 0..1 | A booking request may have one approval record (if processed). An approval record belongs to exactly one booking request. |
+| Decides | User (Staff) | Booking Approval | 1 : N | A staff member can create many approval records. An approval record is made by exactly one staff member. |
+| Tracks | Booking Request | Usage Session | 1 : 0..1 | A checked-in booking request has one usage session. A usage session maps to exactly one booking request. |
+| Checks In | User (Staff) | Usage Session | 1 : N | One staff member can check in many sessions. A session is checked in by exactly one staff member. |
 | Contains | Space | Facility | 1 : N | One space can contain many facilities. A facility belongs to exactly one space. |
 | Undergoes | Space | Maintenance Record | 1 : N | One space can have many maintenance records. A maintenance record is for exactly one space. |
 | Reports | User | Maintenance Record | 1 : N | One user can report many maintenance issues. A maintenance record is reported by exactly one user. |
-| Assigned To | User (Staff) | Maintenance Record | 1 : N | One staff member can be assigned to many maintenance records. A maintenance record may be assigned to at most one staff member. |
-| Checks In | User (Staff) | Booking Request | 1 : N | One staff member can check in many bookings. A booking may be checked in by at most one staff member. |
+| Assigned To | User (Staff) | Maintenance Record | 1 : N | One staff member can be assigned to many maintenance records. |
 
 ---
 
-## 5. Business Rules
+## 5. Traceability Matrix
+
+| Entity/Attribute | Source Requirement (Paragraph/Sentence) |
+|---|---|
+| **User** (ID, Name, Email, Phone, Role, Dept, Status) | "The system stores basic user information, including user ID, full name, email, phone number, role, department, and account status." |
+| **Space** (Code, Name, Type, Building, Floor, Room, Capacity, Status, Policy) | "For each space, the system stores a unique space code, space name, space type, building, floor, room number, capacity, current status, and usage policy." |
+| **Facility** (Name) | "...projector, whiteboard, microphone, computer, livestreaming equipment, or air conditioner. The system should store the list of facilities..." |
+| **Booking Request** (Start/End Time, Purpose, Expected Participants) | "Users can submit booking requests by selecting a space, requested start time, requested end time, purpose of use, and expected number of participants." |
+| **Booking Request** (Booking Type) | "A booking may be for a lecture, examination, seminar, workshop, meeting, student activity, or administrative event." |
+| **Booking Request** (Status) | "Each booking request has a status, such as pending, approved, rejected, cancelled, checked in, completed, or no-show." |
+| **Booking Approval** | "When a booking is approved or rejected, the system records the staff member who made the decision, the decision time, and a decision note. If the booking is rejected, the rejection reason should be stored." |
+| **Usage Session** (Check-in/out details) | "The system records the actual start time, the person who checked in the booking, and the initial condition of the space... actual end time, the final condition of the space, and any usage notes." |
+
+---
+
+## 6. Business Rules
 
 1. **Unique User Identity**: Each user must have a university account. User ID is unique across the system.
-
-2. **Space Status Prevents Booking**: A space whose `Current Status` is `Under Maintenance`, `Temporarily Closed`, or `Retired` cannot be booked. A space is automatically marked as Under Maintenance in the Space table whenever a Maintenance Record is created or updated with a status of Reported or In Progress.
-
-3. **Conflict Prevention**: The same space cannot have two approved bookings with overlapping time periods. The system must reject or flag any new booking that overlaps an existing approved booking for the same space. 
-
-4. **Booking Status Lifecycle**:
+2. **Unique Space Identity**: Each space must have a space code. Space code is unique across the system.
+3. **Unavailable spaces cannot be booked**: A space that is under maintenance, closed, or retired cannot be booked.
+4. **Conflict Prevention**: The same space cannot have two approved bookings with overlapping time periods. The system must reject or flag any new booking that overlaps an existing approved booking for the same space.
+5. **Capacity Enforcement**: The expected number of participants in a booking request should not exceed the space's capacity.
+6. **Booking Status Lifecycle**:
    - A newly submitted booking starts as `Pending`.
    - A pending booking may be `Approved` or `Rejected` by facility staff/manager.
    - An approved booking may be `Cancelled` (by requester or staff).
    - On arrival, an approved booking is `Checked In`.
    - After the session ends, a checked-in booking is `Completed`.
    - If the requester does not show up, the booking is marked `No-Show`.
-
-5. **Approval Recording**: When a booking is approved or rejected, the system must record the approving staff member's ID, the decision time, and a decision note. If rejected, a rejection reason must be stored.
-
-6. **Check-In/Check-Out Recording**: On check-in, the system records actual start time, who checked in, and the initial condition of the space. On completion, it records actual end time, final condition, and usage notes.
-
-7. **Request Booking Block by Maintenance Status**: A space that has an active (non-completed) maintenance record with status `In Progress` or `Reported` is considered under maintenance and cannot accept booking requests. When a Maintenance Record status is updated to Completed or Cancelled, the system checks if any other active maintenance records exist for that space. If none exist, the Space.Current Status automatically reverts to Available.
-
-
-8. **Historical Retention**: The system must keep historical records of all past bookings and maintenance activities (no hard deletion of completed records).
-
-9. **Role-Based Actions**: Only Facility Staff and Facility Manager roles can approve/reject bookings, perform check-in/check-out, and manage maintenance records.
-
-10. **Request Booking Block by User Status**: Users with a "Suspended" or "Inactive" account status cannot submit booking requests.
+7. **Approval Recording**: When a booking is approved or rejected, an Approval record must capture the approving staff member's ID, the decision time, and a decision note. If rejected, a rejection reason must be stored.
+8. **Check-In/Check-Out Recording**: On check-in, a Usage Session record captures actual start time, who checked in, and the initial condition of the space. On completion, it records actual end time, final condition, and usage notes.
+9. **Historical Retention**: The system must keep historical records of all past bookings and maintenance activities.
+10. **Role-Based Actions**: Only Facility Staff and Facility Manager roles can approve/reject bookings, perform check-in/check-out, and manage maintenance records.
+11. **Time ordering**: Requested start time must be before requested end time. Actual start time must be before actual end time.
+12. **Cancellation constraint**: A booking can only be cancelled while in pending or approved status.
 
 ---
 
-## 6. Open Questions
+## 7. Design Rules & Inferences
+
+1. **Maintenance Status Synchronization**: The requirement states that "A space under maintenance cannot be booked". How a space enters the "Under Maintenance" status is a design decision. It is recommended that a space's `Current Status` is derived from or automatically updated by active Maintenance Records (Reported/In Progress).
+2. **Request Booking Block by Maintenance Status**: A space that has an active (non-completed) maintenance record with status `In Progress` or `Reported` is considered under maintenance and cannot accept booking requests.
+
+---
+
+## 8. Open Questions
 
 | # | Question | Suggested Source |
 |---|---|---|
@@ -174,21 +207,18 @@ A record of maintenance work performed on a space.
 | Q2 | What is the maximum advance notice period for booking a space? | Clarify with Facility Manager |
 | Q3 | Should the system support waitlisting for popular spaces? | Clarify with Facility Manager |
 | Q4 | Are there any capacity restrictions beyond the raw number (e.g., fire safety limits)? | Clarify with School Safety Officer |
-| Q5 | Should the system integrate with the university's existing authentication (SSO/LDAP)? | Clarify with IT |
-| Q6 | What constitutes a "no-show"? A specific grace period after the requested start time? | Clarify with Facility Manager |
-| Q7 | Can a booking request span multiple days, or is it limited to a single day? | Clarify with Facility Manager |
-| Q8 | Should there be a priority system (e.g., lecturers have priority over student groups for certain spaces)? | Clarify with Facility Manager |
+| Q5 | What constitutes a "no-show"? A specific grace period after the requested start time? | Clarify with Facility Manager |
+| Q6 | Can a booking request span multiple days, or is it limited to a single day? | Clarify with Facility Manager |
+| Q7 | Which roles/users can bypass booking approval? The requirement implies some bookings "may require approval" but does not define the exceptions. | Clarify with Facility Manager |
 
 ---
 
-## 7. Assumptions
+## 9. Assumptions
 
 | # | Assumption |
 |---|---|
 | A1 | Each booking involves exactly one space and one requester (no multi-space or multi-requester bookings). |
 | A2 | Facilities are tracked as a simple list per space; no separate inventory management or procurement system is needed. |
 | A3 | A booking request is for a contiguous block of time (not multiple non-overlapping segments). |
-| A4 | The system does not handle billing or cost allocation for space usage. |
-| A5 | Maintenance records are informational; no automated scheduling or resource allocation is required. |
-| A6 | User authentication and authorization are handled externally by the university; the system only stores user identity and role information. |
-| A7 | Bookings cannot be modified after submission; they must be cancelled and re-submitted. |
+| A4 | Bookings cannot be modified after submission; they must be cancelled and re-submitted. |
+| A5 | Maintenance syncing: Any automatic setting of a Space's status to 'Under Maintenance' when a Maintenance Record is created is an implemented design mechanism, not a strict business rule. |
